@@ -3,762 +3,587 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A320neo Checkliste · MSFS 2024</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Scoreboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
-  /* ============================================
-     A320neo CHECKLISTE — MSFS 2024
-     Design: Cockpit-Industrial Dark Theme
-     Farben, Fonts und Layout hier anpassbar
-  ============================================ */
-
-  /* --- FARBEN (hier anpassen) --- */
-  :root {
-    --bg-base:        #0d0f12;
-    --bg-panel:       #12161b;
-    --bg-card:        #181d24;
-    --bg-hover:       #1e242d;
-    --accent-green:   #00e5a0;
-    --accent-amber:   #f0a500;
-    --accent-blue:    #4db8ff;
-    --accent-red:     #ff5555;
-    --text-primary:   #e8ecf0;
-    --text-secondary: #7a8694;
-    --text-muted:     #3d4855;
-    --border:         #232b35;
-    --border-bright:  #2e3a47;
-    --phase-1-color:  #4db8ff;
-    --phase-2-color:  #f0a500;
-    --phase-3-color:  #00e5a0;
-    --phase-4-color:  #ff5555;
-    --phase-5-color:  #00e5a0;
-    --phase-6-color:  #9f7aea;
-    --phase-7-color:  #4db8ff;
-    --phase-8-color:  #00e5a0;
-    --phase-9-color:  #f0a500;
-    --phase-10-color: #ff5555;
-    --phase-11-color: #00e5a0;
+  :root{
+    --bg:#16171A;
+    --panel:#1E2025;
+    --panel-2:#242730;
+    --line:#33363E;
+    --text:#EDEDEC;
+    --text-dim:#9B9EA6;
+    --blue:#4C6FFF;
+    --gold:#E8B93F;
+    --green:#3FBF7F;
+    --red:#E2584D;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+  }
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:22px;
+    gap:12px;
+  }
+  h1{
+    font-family:'Archivo',sans-serif;
+    font-weight:800;
+    font-size:26px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .month-label{
+    color:var(--text-dim);
+    font-size:14px;
   }
 
-  /* --- RESET & BASE --- */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { font-size: 16px; scroll-behavior: smooth; }
-  body {
-    font-family: 'Barlow', sans-serif;
-    background: var(--bg-base);
-    color: var(--text-primary);
-    min-height: 100vh;
-    line-height: 1.5;
+  /* Player picker */
+  #who{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+  }
+  #who button{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:8px;
+    padding:10px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:'Inter';
+  }
+  #who button.active{
+    border-color:var(--blue);
+    background:var(--panel-2);
   }
 
-  /* --- SCANLINE OVERLAY (atmosphärisch, deaktivierbar) --- */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.03) 2px,
-      rgba(0,0,0,0.03) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
+  /* Scoreboard cards */
+  .board{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    margin-bottom:24px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 12px;
+    position:relative;
+    overflow:hidden;
+  }
+  .card.rank-1{border-color:var(--gold);}
+  .rank-tag{
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .card.rank-1 .rank-tag{color:var(--gold);}
+  .p-name{
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:8px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .p-score{
+    font-family:'Archivo',sans-serif;
+    font-weight:800;
+    font-size:32px;
+    line-height:1;
+    letter-spacing:-0.02em;
+  }
+  .p-score .unit{font-size:13px;color:var(--text-dim);font-family:'Inter';font-weight:500;margin-left:3px;}
+  .p-meta{
+    margin-top:8px;
+    font-size:12px;
+    color:var(--text-dim);
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .p-gap{
+    margin-top:8px;
+    font-size:12px;
+    color:var(--text-dim);
   }
 
-  /* --- LAYOUT --- */
-  .page {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
+  /* Chart */
+  section.chart{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:24px;
   }
+  section.chart h2{
+    font-size:14px;
+    font-weight:600;
+    margin:0 0 12px;
+    color:var(--text-dim);
+  }
+  section.chart canvas{max-height:220px;}
 
-  /* --- HEADER --- */
-  .header {
-    border-bottom: 1px solid var(--border-bright);
-    padding-bottom: 1.5rem;
-    margin-bottom: 2rem;
+  /* Stakes banner */
+  .stakes{
+    background:var(--panel);
+    border:1px solid var(--gold);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:24px;
+    font-size:13px;
+    color:var(--text-dim);
+    line-height:1.5;
   }
-  .header-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-  }
-  .logo-block {}
-  .logo-tag {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    color: var(--accent-green);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .logo-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: 0.02em;
-    line-height: 1;
-  }
-  .logo-title span { color: var(--accent-blue); }
-  .logo-sub {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-top: 6px;
-    font-weight: 300;
-  }
+  .stakes strong{color:var(--gold);}
 
-  /* --- CONTROLS --- */
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .btn {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    padding: 7px 14px;
-    border: 1px solid var(--border-bright);
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: 3px;
-    text-transform: uppercase;
-    transition: all 0.15s;
+  /* Log entry */
+  section.log{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:20px;
   }
-  .btn:hover { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,229,160,0.05); }
-  .btn-reset:hover { border-color: var(--accent-red); color: var(--accent-red); background: rgba(255,85,85,0.05); }
+  section.log h2{
+    font-size:14px;
+    font-weight:600;
+    margin:0 0 12px;
+  }
+  .cats{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .cat-btn{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:11px 12px;
+    cursor:pointer;
+    color:var(--text);
+    font-family:'Inter';
+    font-size:13px;
+    font-weight:500;
+    text-align:left;
+  }
+  .cat-btn:active{border-color:var(--blue);}
+  .cat-btn.numeric{cursor:default;flex-wrap:wrap;gap:8px;}
+  .numeric-input{display:flex;gap:6px;}
+  .numeric-input input{
+    width:78px;
+    background:var(--bg);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:6px 8px;
+    font-size:13px;
+    font-family:'Inter';
+  }
+  .numeric-input button{
+    background:var(--blue);
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:6px 10px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .numeric-input button:disabled{opacity:0.4;cursor:default;}
+  .cat-pts{
+    color:var(--green);
+    font-weight:700;
+    font-size:13px;
+  }
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--green);
+    color:#0d1a12;
+    padding:10px 18px;
+    border-radius:20px;
+    font-size:13px;
+    font-weight:600;
+    opacity:0;
+    transition:opacity .2s, transform .2s;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
-  /* --- STATS BAR --- */
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 1.5rem;
+  /* Feed */
+  section.feed h2{
+    font-size:14px;
+    font-weight:600;
+    margin:0 0 10px;
+    color:var(--text-dim);
   }
-  @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-  .stat {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 12px 14px;
+  .feed-item{
+    display:flex;
+    justify-content:space-between;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+    font-size:13px;
   }
-  .stat-label {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
+  .feed-item:last-child{border-bottom:none;}
+  .feed-name{font-weight:600;}
+  .feed-cat{color:var(--text-dim);}
+  .feed-pts{color:var(--green);font-weight:700;}
+  .feed-time{color:var(--text-dim);font-size:12px;margin-left:8px;}
+  .del-btn{
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:16px;
+    cursor:pointer;
+    margin-left:8px;
+    padding:0 4px;
+    line-height:1;
   }
-  .stat-val {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 26px;
-    font-weight: 600;
-    color: var(--text-primary);
-    line-height: 1;
-  }
-  .stat-val.green { color: var(--accent-green); }
-
-  /* --- PROGRESS BAR --- */
-  .progress-wrap { margin-bottom: 1.75rem; }
-  .progress-meta {
-    display: flex;
-    justify-content: space-between;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    letter-spacing: 0.08em;
-    margin-bottom: 6px;
-  }
-  .progress-track {
-    width: 100%;
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
-    border-radius: 2px;
-    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
-    width: 0%;
-  }
-
-  /* --- PHASE CARDS --- */
-  .phase {
-    margin-bottom: 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
-    transition: border-color 0.2s;
-  }
-  .phase:hover { border-color: var(--border-bright); }
-  .phase.complete { border-color: rgba(0,229,160,0.2); }
-
-  .phase-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 13px 16px;
-    background: var(--bg-panel);
-    cursor: pointer;
-    user-select: none;
-    gap: 12px;
-  }
-  .phase-header:hover { background: var(--bg-hover); }
-
-  .phase-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-
-  /* Farbige Phasen-Nummer */
-  .phase-num {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    font-weight: 600;
-    width: 26px;
-    height: 26px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    letter-spacing: 0.05em;
-  }
-
-  .phase-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .phase-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-
-  .phase-progress-text {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    color: var(--text-secondary);
-    min-width: 36px;
-    text-align: right;
-  }
-  .phase.complete .phase-progress-text { color: var(--accent-green); }
-
-  .phase-mini-bar {
-    width: 60px;
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .phase-mini-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.3s;
-  }
-
-  .phase-chevron {
-    width: 16px;
-    height: 16px;
-    color: var(--text-muted);
-    transition: transform 0.2s;
-    flex-shrink: 0;
-  }
-  .phase-chevron.open { transform: rotate(90deg); }
-
-  /* --- PHASE BODY --- */
-  .phase-body { display: none; background: var(--bg-card); }
-  .phase-body.open { display: block; }
-
-  /* --- SECTION DIVIDERS --- */
-  .section-divider {
-    padding: 10px 16px 5px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border-top: 1px solid var(--border);
-  }
-  .section-divider:first-child { border-top: none; }
-
-  /* --- CHECKLIST ITEMS --- */
-  .item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 9px 16px;
-    cursor: pointer;
-    transition: background 0.1s;
-    border-top: 1px solid transparent;
-  }
-  .item:hover { background: var(--bg-hover); }
-  .item.done .item-label { text-decoration: line-through; color: var(--text-muted); }
-  .item.done { opacity: 0.6; }
-
-  /* Checkbox */
-  .checkbox {
-    width: 17px;
-    height: 17px;
-    min-width: 17px;
-    border: 1px solid var(--border-bright);
-    border-radius: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 1px;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  .item:hover .checkbox { border-color: var(--text-secondary); }
-  .item.done .checkbox {
-    background: var(--accent-green);
-    border-color: var(--accent-green);
-  }
-  .checkmark {
-    display: none;
-    color: #0d0f12;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-  }
-  .item.done .checkmark { display: block; }
-
-  .item-content { flex: 1; min-width: 0; }
-  .item-label {
-    font-size: 13.5px;
-    font-weight: 400;
-    color: var(--text-primary);
-    line-height: 1.4;
-  }
-  .item-note {
-    font-size: 11.5px;
-    color: var(--text-secondary);
-    margin-top: 2px;
-    font-weight: 300;
-  }
-
-  /* Licht Badge */
-  .light-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 9px;
-    padding: 2px 7px;
-    border-radius: 2px;
-    margin-left: 8px;
-    background: rgba(240,165,0,0.12);
-    color: var(--accent-amber);
-    border: 1px solid rgba(240,165,0,0.2);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    vertical-align: middle;
-  }
-  .light-badge::before {
-    content: '';
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--accent-amber);
-    flex-shrink: 0;
-  }
-
-  /* --- FOOTER --- */
-  .footer {
-    margin-top: 3rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .footer-text {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    letter-spacing: 0.08em;
-  }
-
-  /* --- RESPONSIVE --- */
-  @media (max-width: 500px) {
-    .logo-title { font-size: 24px; }
-    .phase-mini-bar { display: none; }
-    .phase-name { font-size: 13px; }
-  }
+  .del-btn:hover{color:var(--red);}
+  .empty{color:var(--text-dim);font-size:13px;padding:16px 0;}
 </style>
 </head>
 <body>
-<div class="page">
+<div class="wrap">
 
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header-top">
-      <div class="logo-block">
-        <div class="logo-tag">MSFS 2024 · Normal Operations</div>
-        <div class="logo-title">A320<span>neo</span> Checkliste</div>
-        <div class="logo-sub">Airbus A320neo v2 · Microsoft Flight Simulator 2024</div>
-      </div>
-      <div class="controls">
-        <button class="btn btn-reset" onclick="resetAll()">Reset</button>
-        <button class="btn" onclick="expandAll()">Alle öffnen</button>
-        <button class="btn" onclick="collapseAll()">Alle schließen</button>
-      </div>
-    </div>
+  <header>
+    <h1>Scoreboard</h1>
+    <div class="month-label" id="monthLabel"></div>
   </header>
 
-  <!-- STATS -->
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-label">Gesamt</div>
-      <div class="stat-val" id="stat-total">0</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Erledigt</div>
-      <div class="stat-val green" id="stat-done">0</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Offen</div>
-      <div class="stat-val" id="stat-open">0</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Fortschritt</div>
-      <div class="stat-val" id="stat-pct">0%</div>
-    </div>
-  </div>
+  <div id="who"></div>
 
-  <!-- PROGRESS BAR -->
-  <div class="progress-wrap">
-    <div class="progress-meta">
-      <span>Gesamtfortschritt</span>
-      <span id="prog-label">0 / 0</span>
-    </div>
-    <div class="progress-track"><div class="progress-fill" id="prog"></div></div>
-  </div>
+  <div class="board" id="board"></div>
 
-  <!-- PHASES CONTAINER -->
-  <div id="phases"></div>
+  <section class="chart">
+    <h2>Punkteverlauf diesen Monat</h2>
+    <canvas id="trendChart"></canvas>
+  </section>
 
-  <!-- FOOTER -->
-  <footer class="footer">
-    <div class="footer-text">A320NEO · MSFS 2024 · NORMAL OPERATIONS CHECKLIST</div>
-    <div class="footer-text" id="footer-time"></div>
-  </footer>
+  <div class="stakes" id="stakesBanner"></div>
+
+  <section class="log">
+    <h2>Punkte eintragen</h2>
+    <div class="cats" id="cats"></div>
+  </section>
+
+  <section class="feed">
+    <h2>Letzte Einträge</h2>
+    <div id="feed"></div>
+  </section>
 
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-/* ============================================
-   CHECKLISTEN-DATEN
-   Hier Phasen und Items hinzufügen/entfernen
-============================================ */
-const PHASES = [
-  {
-    id: "preflight", title: "Preflight & Cockpit Setup",
-    colorVar: "--phase-1-color",
-    items: [
-      {s:"Außencheck",          label:"Außen Ready",                    note:"Walk-around abgeschlossen"},
-      {s:"Außencheck",          label:"Tablet Check",                   note:"EFB / Tablet funktionsfähig"},
-      {s:"Außencheck",          label:"Tablet → Flight Data",           note:"Route, Wetter, NOTAM geprüft"},
-      {s:"Außencheck",          label:"Tablet → Payload",               note:"PAX & Cargo eingegeben"},
-      {s:"Strom & Avionik",     label:"Batterie 1 & 2 — ON"},
-      {s:"Strom & Avionik",     label:"External Power — ON",            note:"GPU verbinden, EXT PWR annehmen"},
-      {s:"Strom & Avionik",     label:"IRS 1, 3, 2 — NAV",             note:"Reihenfolge: IR1 → IR3 → IR2 · Alignment ~10 Min."},
-      {s:"Strom & Avionik",     label:"Crew Supply — ON"},
-      {s:"Strom & Avionik",     label:"CVR (Aufnahme) — TEST/ON"},
-      {s:"MCDU Init",           label:"MCDU → INIT A — Request",        note:"Board Computer Unit initialisieren"},
-      {s:"MCDU Init",           label:"MCDU → ZFW / %MAC eingeben",     note:"Gewicht vom Tablet übernehmen"},
-      {s:"MCDU Init",           label:"MCDU → Fuel Block eingeben"},
-      {s:"MCDU Init",           label:"MCDU → F-PLN Routing eingeben",  note:"ADEP, ADES, SID, STAR"},
-      {s:"MCDU Init",           label:"MCDU → Autopilot Init (AP/FD)",  note:"V-Speeds, Flaps, Trim setzen"},
-    ]
-  },
-  {
-    id: "apu", title: "APU & Systeme",
-    colorVar: "--phase-2-color",
-    items: [
-      {s:"APU",                   label:"APU Master — ON"},
-      {s:"APU",                   label:"APU Start — ON",               note:"Warten bis AVAIL leuchtet"},
-      {s:"APU",                   label:"APU Bleed — ON"},
-      {s:"Hydraulik & Treibstoff",label:"LK Pumpen — alle ON",          note:"Alle 6 Hydraulikpumpen einschalten"},
-      {s:"Hydraulik & Treibstoff",label:"External Power — OFF",         note:"Jetzt auf APU-Strom umschalten"},
-    ]
-  },
-  {
-    id: "takeoffprep", title: "Takeoff Vorbereitung",
-    colorVar: "--phase-3-color",
-    items: [
-      {s:"MCDU & Performance",    label:"Tablet → Takeoff Data prüfen",  note:"V1, VR, V2 notieren"},
-      {s:"MCDU & Performance",    label:"MCDU → Takeoff Daten eingeben", note:"Flex Temp, TOGA, Trim, Flaps"},
-      {s:"Pushback & Lights",     label:"Beacon — ON",                   note:"Immer vor Engine Start!", light:true},
-      {s:"Pushback & Lights",     label:"Parking Brake — SET"},
-      {s:"Pushback & Lights",     label:"Pushback anfordern / starten"},
-    ]
-  },
-  {
-    id: "enginestart", title: "Engine Start",
-    colorVar: "--phase-4-color",
-    items: [
-      {s:"Engine Start",        label:"ENG Mode Selector → IGN/START"},
-      {s:"Engine Start",        label:"Engine 2 starten",              note:"Master ENG2 → ON · N2 steigt, dann N1"},
-      {s:"Engine Start",        label:"Engine 1 starten",              note:"Master ENG1 → ON"},
-      {s:"Engine Start",        label:"Beide Triebwerke stabil",       note:"N1 & N2 normal, keine ECAM-Warnungen"},
-      {s:"Nach Engine Start",   label:"APU Bleed — OFF",               note:"Bleed Air jetzt von Triebwerken"},
-      {s:"Nach Engine Start",   label:"APU Master — OFF"},
-      {s:"Nach Engine Start",   label:"ENG Mode Selector → NORM"},
-    ]
-  },
-  {
-    id: "taxi", title: "Before Taxi & Taxi",
-    colorVar: "--phase-5-color",
-    items: [
-      {s:"Before Taxi",         label:"FD — ON · AP — bereit"},
-      {s:"Before Taxi",         label:"Autobrake — MAX"},
-      {s:"Before Taxi",         label:"Speed Brake — ARM",             note:"Hebel armed"},
-      {s:"Before Taxi",         label:"T/O Config — Normal",           note:"ECAM T/O CONFIG Taste drücken"},
-      {s:"Before Taxi",         label:"Flaps setzen",                  note:"Gemäß Takeoff-Daten (Flaps 1 oder 2)"},
-      {s:"Before Taxi",         label:"Flight Controls — CHECK",       note:"Voll auslenken, ECAM prüfen"},
-      {s:"Before Taxi",         label:"Transponder — TA/RA"},
-      {s:"Taxi Lights",         label:"Taxi Light — ON",               light:true},
-      {s:"Taxi Lights",         label:"Nose Light → Taxi",             light:true},
-      {s:"Taxi Lights",         label:"Parking Brake — RELEASE"},
-      {s:"Taxi Lights",         label:"Taxi-Freigabe → ATC",           note:"Rollweg & Hold-Short beachten"},
-    ]
-  },
-  {
-    id: "beforeto", title: "Before Takeoff — Lining Up",
-    colorVar: "--phase-6-color",
-    items: [
-      {s:"Runway Entry",        label:"Taxi Light — OFF",              light:true},
-      {s:"Runway Entry",        label:"Strobe Lights — ON",            note:"Beim Einrollen auf die Runway", light:true},
-      {s:"Runway Entry",        label:"Landing Lights — ON",           light:true},
-      {s:"Runway Entry",        label:"Nose Light → TO",               light:true},
-      {s:"Runway Entry",        label:"Cabin Crew informieren",        note:"'Cabin crew, take your seats'"},
-      {s:"Runway Entry",        label:"TCAS — TA/RA · Transponder ON"},
-      {s:"Runway Entry",        label:"Trim, V-Speeds & Flaps prüfen"},
-    ]
-  },
-  {
-    id: "climb", title: "Takeoff & Climb",
-    colorVar: "--phase-7-color",
-    items: [
-      {s:"Takeoff",             label:"TOGA / Flex — setzen",           note:"Thrust Levers nach vorne"},
-      {s:"Takeoff",             label:"80 kt — Callout, PFD prüfen"},
-      {s:"Takeoff",             label:"V1 — No more abort"},
-      {s:"Takeoff",             label:"VR — Rotate (~10–12° Pitch)"},
-      {s:"Takeoff",             label:"Positive Rate → Gear UP"},
-      {s:"Climb - Lights",      label:"Autobrake — OFF (nach Gear UP)"},
-      {s:"Climb - Lights",      label:"Landing Lights — OFF über 10.000 ft", light:true},
-      {s:"Climb - Lights",      label:"Strobe Lights — ON bleiben",     light:true},
-      {s:"Climb - Flaps",       label:"Flap Retraction: F-Speed → Flaps 1", note:"Auf FMA-Geschwindigkeit warten"},
-      {s:"Climb - Flaps",       label:"S-Speed → Flaps 0 · Clean Config"},
-      {s:"Climb - Profil",      label:"Unter FL100: max 250 kt (ICAO)"},
-      {s:"Climb - Profil",      label:"Ab FL100: Managed Speed ~300–310 kt"},
-      {s:"Climb - Profil",      label:"Ab FL280+: Mach M0.78",          note:"Cruise: M0.79–0.82"},
-      {s:"Climb - Profil",      label:"Seatbelt Sign — prüfen"},
-    ]
-  },
-  {
-    id: "cruise", title: "Cruise",
-    colorVar: "--phase-8-color",
-    items: [
-      {s:"Flight Level",        label:"Optimales FL prüfen",            note:"Leicht: FL370–390 · Schwer: FL310–350"},
-      {s:"Flight Level",        label:"Cruise Speed: M0.79–0.82 (Managed)"},
-      {s:"Systeme",             label:"Fuel Balance prüfen",            note:"L/R Tank: max 500 kg Differenz"},
-      {s:"Systeme",             label:"ECAM Status — keine Warnungen"},
-      {s:"Systeme",             label:"Cabin Pressure — prüfen"},
-      {s:"Systeme",             label:"Strobe Lights — ON bleiben",     light:true},
-      {s:"MCDU",                label:"MCDU → STAR & Approach laden",   note:"Destination, Runway, Approach"},
-      {s:"MCDU",                label:"MCDU → PERF DES prüfen",         note:"Descent-Profil, Vapp"},
-    ]
-  },
-  {
-    id: "descent", title: "Descent & Approach",
-    colorVar: "--phase-9-color",
-    items: [
-      {s:"Top of Descent",      label:"TOD berechnen",                  note:"Faustregel: Höhe (ft) ÷ 300 = NM vor Ziel · z.B. FL350 → 117 NM"},
-      {s:"Top of Descent",      label:"Descent einleiten",              note:"Managed Descent · VS ca. −1800 bis −2500 ft/min"},
-      {s:"Descent",             label:"Unter FL100: max 250 kt"},
-      {s:"Descent",             label:"Landing Lights — ON unter 10.000 ft", light:true},
-      {s:"Descent",             label:"Seatbelt Sign — ON"},
-      {s:"Approach",            label:"ATIS / Landebahn prüfen"},
-      {s:"Approach",            label:"ILS / Approach im MCDU laden"},
-      {s:"Approach",            label:"Briefing: Minima, Missed Approach"},
-      {s:"Approach",            label:"Flaps 1 → bei Glide Slope capture"},
-      {s:"Approach",            label:"Flaps 2 → Gear DOWN",            note:"Gear DOWN unter 280 kt"},
-      {s:"Approach",            label:"Autobrake — MED oder LOW"},
-      {s:"Approach",            label:"Flaps 3 oder FULL"},
-      {s:"Approach",            label:"Vapp prüfen",                    note:"Vref + Wind Additive (ca. 5–10 kt)"},
-      {s:"Approach",            label:"Spoiler — ARM"},
-      {s:"Approach",            label:"Cabin Crew informieren",         note:"'10 minutes to landing'"},
-    ]
-  },
-  {
-    id: "landing", title: "Landing & Rollout",
-    colorVar: "--phase-10-color",
-    items: [
-      {s:"Final",               label:"Stable Approach Check",          note:"Speed & Gleitweg stabil, PAPI prüfen"},
-      {s:"Landing",             label:"Thrust — IDLE bei Schwelle"},
-      {s:"Landing",             label:"Flare — leicht ziehen, Aufsetzen"},
-      {s:"Landing",             label:"Ground Spoiler — automatisch ausfahren"},
-      {s:"Landing",             label:"Reverser 1 & 2 — MAX REVERSE",  note:"Bis ca. 70 kt aktiv"},
-      {s:"Landing",             label:"Autobrake — aktiv (Decel-Rate prüfen)"},
-      {s:"Rollout",             label:"Reverser stow bei ~60–70 kt"},
-      {s:"Rollout",             label:"Unter 30 kt: manuell bremsen"},
-      {s:"Rollout",             label:"Runway frei → Rollweg"},
-    ]
-  },
-  {
-    id: "shutdown", title: "After Landing & Shutdown",
-    colorVar: "--phase-11-color",
-    items: [
-      {s:"After Landing",       label:"Strobe Lights — OFF",            light:true},
-      {s:"After Landing",       label:"Landing Lights — OFF",           light:true},
-      {s:"After Landing",       label:"Taxi Light — ON",                light:true},
-      {s:"After Landing",       label:"Nose Light → Taxi",              light:true},
-      {s:"After Landing",       label:"Spoiler — DISARM"},
-      {s:"After Landing",       label:"Flaps — 0 einfahren"},
-      {s:"After Landing",       label:"Transponder — STBY oder OFF"},
-      {s:"After Landing",       label:"APU Master — ON · APU Start",    note:"APU für Strom beim Shutdown"},
-      {s:"After Landing",       label:"APU Bleed — ON"},
-      {s:"Parking & Shutdown",  label:"Parking Brake — SET"},
-      {s:"Parking & Shutdown",  label:"Taxi Light — OFF",               light:true},
-      {s:"Parking & Shutdown",  label:"Engine 1 — OFF"},
-      {s:"Parking & Shutdown",  label:"Engine 2 — OFF"},
-      {s:"Parking & Shutdown",  label:"Seatbelt Sign — OFF"},
-      {s:"Parking & Shutdown",  label:"Beacon — OFF",                   note:"Nur wenn beide Triebwerke aus", light:true},
-      {s:"Parking & Shutdown",  label:"External Power anschließen (optional)"},
-      {s:"Parking & Shutdown",  label:"Avionik ausschalten"},
-      {s:"Parking & Shutdown",  label:"APU — OFF (nach ~5 Min. Abkühlung)"},
-      {s:"Parking & Shutdown",  label:"Batterie 1 & 2 — OFF"},
-    ]
-  },
+/* ============================================================
+   KONFIGURATION — hier alles auf euch drei anpassen
+   ============================================================ */
+
+// Eure 3 Spieler: id = intern, name = Anzeigename
+const PLAYERS = [
+  { id: "p1", name: "Tammo" },
+  { id: "p2", name: "Joshua" },
+  { id: "p3", name: "Lennart" },
 ];
 
-/* ============================================
-   STATE & RENDERING
-============================================ */
-const openPhases = new Set();
-const checked = new Set();
+// Kategorien: "flat" = fester Punktwert pro Klick, "numeric" = Zahl eingeben,
+// Punkte werden aus der Menge berechnet.
+const CATEGORIES = [
+  { id: "sport",             label: "Sport",                                       type: "flat",    points: 50 },
+  { id: "lesen",              label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
+  { id: "screentime_besser",  label: "Screenzeit: 30 Min weniger als letzte Woche", type: "flat",    points: 10 },
+  { id: "screentime_ziel",    label: "Screenzeit-Wochenschnitt unter 2h",           type: "flat",    points: 50 },
+  { id: "schritte",           label: "Schritte",                                    type: "numeric", unitLabel: "Schritte", unitSize: 1000, pointsPerUnit: 1 },
+  { id: "bett",               label: "Bett gemacht",                                type: "flat",    points: 1 },
+];
 
-function getColor(phase) {
-  return getComputedStyle(document.documentElement).getPropertyValue(phase.colorVar).trim();
-}
+// Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen, informativ)
+const MONTHLY_PRIZE_EUR = 15;
 
-function buildPhase(phase, idx) {
-  const color = getColor(phase);
-  const total = phase.items.length;
-  const done = phase.items.filter((_, i) => checked.has(phase.id + '_' + i)).length;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const isOpen = openPhases.has(phase.id);
-  const isComplete = done === total;
+// Fest eingetragene Supabase-Zugangsdaten (Publishable Key ist bewusst öffentlich nutzbar)
+const SUPABASE_URL = "https://dswuwwmkrjwhyzbnyvvi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_tGL-gO7-zsiQw5jwyzeUEA_ef_Cduao";
 
-  let itemsHtml = '';
-  let lastSection = null;
-  phase.items.forEach((item, i) => {
-    const key = phase.id + '_' + i;
-    const isDone = checked.has(key);
-    if (item.s !== lastSection) {
-      itemsHtml += `<div class="section-divider">${item.s}</div>`;
-      lastSection = item.s;
-    }
-    const lightBadge = item.light ? `<span class="light-badge">Licht</span>` : '';
-    const noteHtml = item.note ? `<div class="item-note">${item.note}</div>` : '';
-    itemsHtml += `
-      <div class="item${isDone ? ' done' : ''}" data-key="${key}" data-phase="${phase.id}">
-        <div class="checkbox"><span class="checkmark">✓</span></div>
-        <div class="item-content">
-          <div class="item-label">${item.label}${lightBadge}</div>
-          ${noteHtml}
-        </div>
-      </div>`;
-  });
+/* ============================================================
+   Ab hier nichts mehr anfassen
+   ============================================================ */
 
-  const numStyle = `background:${color}22;color:${color};border:1px solid ${color}44`;
-  const fillStyle = `background:${color};width:${pct}%`;
+let sb = null;
+let currentPlayer = localStorage.getItem("sb_current_player") || null;
+let currentMonthEntries = [];
+let trendChart = null;
 
-  return `
-    <div class="phase${isComplete ? ' complete' : ''}" id="ph-${phase.id}">
-      <div class="phase-header" data-toggle="${phase.id}">
-        <div class="phase-left">
-          <div class="phase-num" style="${numStyle}">${String(idx+1).padStart(2,'0')}</div>
-          <div class="phase-name">${phase.title}</div>
-        </div>
-        <div class="phase-right">
-          <div class="phase-progress-text">${done}/${total}</div>
-          <div class="phase-mini-bar">
-            <div class="phase-mini-fill" style="${fillStyle}"></div>
-          </div>
-          <svg class="phase-chevron${isOpen ? ' open' : ''}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-      </div>
-      <div class="phase-body${isOpen ? ' open' : ''}" id="body-${phase.id}">${itemsHtml}</div>
-    </div>`;
-}
-
-function updateStats() {
-  const total = PHASES.reduce((a, p) => a + p.items.length, 0);
-  const done = checked.size;
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  document.getElementById('stat-total').textContent = total;
-  document.getElementById('stat-done').textContent = done;
-  document.getElementById('stat-open').textContent = total - done;
-  document.getElementById('stat-pct').textContent = pct + '%';
-  document.getElementById('prog').style.width = pct + '%';
-  document.getElementById('prog-label').textContent = done + ' / ' + total;
-}
-
-function renderAll() {
-  document.getElementById('phases').innerHTML = PHASES.map((p, i) => buildPhase(p, i)).join('');
-  updateStats();
-  attachListeners();
-}
-
-function attachListeners() {
-  document.querySelectorAll('[data-toggle]').forEach(el => {
-    el.addEventListener('click', function() {
-      const id = this.dataset.toggle;
-      if (openPhases.has(id)) openPhases.delete(id); else openPhases.add(id);
-      renderAll();
-    });
-  });
-  document.querySelectorAll('.item').forEach(el => {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      const key = this.dataset.key;
-      const phaseId = this.dataset.phase;
-      if (checked.has(key)) checked.delete(key); else checked.add(key);
-      openPhases.add(phaseId);
-      renderAll();
-    });
-  });
-}
-
-function resetAll()    { checked.clear(); openPhases.clear(); renderAll(); }
-function expandAll()   { PHASES.forEach(p => openPhases.add(p.id)); renderAll(); }
-function collapseAll() { openPhases.clear(); renderAll(); }
-
-/* Footer Zeit */
-function updateTime() {
+function monthBounds(){
   const now = new Date();
-  document.getElementById('footer-time').textContent =
-    now.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', second:'2-digit'}) + ' LT';
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth()+1, 1);
+  return {start: start.toISOString(), end: end.toISOString()};
 }
-setInterval(updateTime, 1000);
-updateTime();
 
-renderAll();
+function dateKey(d){
+  return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+}
+
+// Streak = Anzahl aufeinanderfolgender Tage (bis heute zurück), an denen
+// diese Person mindestens einen Eintrag hatte, egal welche Kategorie.
+function computeStreak(playerId, entries){
+  const days = new Set(
+    entries.filter(e=> e.player_id === playerId).map(e=> dateKey(new Date(e.created_at)))
+  );
+  let streak = 0;
+  const cursor = new Date();
+  while(days.has(dateKey(cursor))){
+    streak++;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return streak;
+}
+
+function renderWho(){
+  const el = document.getElementById("who");
+  el.innerHTML = "";
+  PLAYERS.forEach(p=>{
+    const btn = document.createElement("button");
+    btn.textContent = p.name;
+    if(p.id === currentPlayer) btn.classList.add("active");
+    btn.onclick = ()=>{
+      currentPlayer = p.id;
+      localStorage.setItem("sb_current_player", p.id);
+      renderWho();
+    };
+    el.appendChild(btn);
+  });
+}
+
+function renderCats(){
+  const el = document.getElementById("cats");
+  el.innerHTML = "";
+  CATEGORIES.forEach(c=>{
+    if(c.type === "flat"){
+      const btn = document.createElement("button");
+      btn.className = "cat-btn";
+      btn.innerHTML = `<span>${c.label}</span><span class="cat-pts">+${c.points}</span>`;
+      btn.onclick = ()=> logFlat(c);
+      el.appendChild(btn);
+    } else {
+      const row = document.createElement("div");
+      row.className = "cat-btn numeric";
+      row.innerHTML = `
+        <span>${c.label}</span>
+        <span class="numeric-input">
+          <input type="number" min="0" step="1" placeholder="${c.unitLabel}" id="input-${c.id}">
+          <button onclick="logNumeric('${c.id}')">Eintragen</button>
+        </span>`;
+      el.appendChild(row);
+    }
+  });
+}
+
+async function logFlat(cat){
+  if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
+  await insertEntry(cat.id, cat.points, `+${cat.points} für ${cat.label}`);
+}
+
+async function logNumeric(catId){
+  const cat = CATEGORIES.find(c=> c.id === catId);
+  if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
+  const input = document.getElementById("input-"+catId);
+  const value = parseInt(input.value, 10);
+  if(!value || value <= 0){ alert("Trag zuerst eine Zahl ein."); return; }
+  const points = Math.floor(value / cat.unitSize) * cat.pointsPerUnit;
+  if(points <= 0){ alert(`Das sind noch keine ${cat.unitSize} ${cat.unitLabel} — noch keine Punkte.`); return; }
+  await insertEntry(cat.id, points, `+${points} für ${value} ${cat.unitLabel}`, value);
+  input.value = "";
+}
+
+async function insertEntry(categoryId, points, toastMsg, rawValue){
+  const { error } = await sb.from("entries").insert({
+    player_id: currentPlayer,
+    category: categoryId,
+    points: points,
+    raw_value: rawValue ?? null
+  });
+  if(error){ alert("Fehler beim Speichern: " + error.message); return; }
+  showToast(toastMsg);
+}
+
+async function deleteEntry(id){
+  if(!confirm("Diesen Eintrag wirklich löschen?")) return;
+  const { error } = await sb.from("entries").delete().eq("id", id);
+  if(error){ alert("Fehler beim Löschen: " + error.message); }
+}
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=> t.classList.remove("show"), 1800);
+}
+
+function renderBoard(entries){
+  const totals = {};
+  PLAYERS.forEach(p=> totals[p.id] = 0);
+  entries.forEach(e=> totals[e.player_id] = (totals[e.player_id]||0) + e.points);
+
+  const ranked = PLAYERS.map(p=>({...p, pts: totals[p.id]||0, streak: computeStreak(p.id, entries)}))
+    .sort((a,b)=> b.pts - a.pts);
+
+  const topScore = ranked[0].pts;
+
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+  ranked.forEach((p, i)=>{
+    const card = document.createElement("div");
+    card.className = "card" + (i===0 && p.pts>0 ? " rank-1" : "");
+    const streakHtml = p.streak > 0 ? `<div class="p-meta">🔥 ${p.streak} Tage Streak</div>` : "";
+    const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} Pkt bis Platz 1</div>` : "";
+    card.innerHTML = `
+      <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}</div>
+      <div class="p-name">${p.name}</div>
+      <div class="p-score">${p.pts}<span class="unit">Pkt</span></div>
+      ${streakHtml}
+      ${gapHtml}
+    `;
+    board.appendChild(card);
+  });
+
+  const leader = ranked[0];
+  const banner = document.getElementById("stakesBanner");
+  if(leader && leader.pts > 0){
+    banner.innerHTML = `<strong>${leader.name}</strong> liegt aktuell vorn und würde am Monatsende insgesamt ${MONTHLY_PRIZE_EUR}€ von den beiden anderen zusammen bekommen.`;
+  } else {
+    banner.innerHTML = `Noch keine Einträge diesen Monat. Wer am Ende vorn liegt, bekommt insgesamt ${MONTHLY_PRIZE_EUR}€ von den beiden anderen zusammen.`;
+  }
+}
+
+function renderChart(entries){
+  const now = new Date();
+  const daysInMonth = now.getDate(); // bis heute, nicht den ganzen Monat voraus
+  const labels = Array.from({length: daysInMonth}, (_, i)=> i+1);
+  const colors = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
+
+  const datasets = PLAYERS.map(p=>{
+    const dailyTotals = new Array(daysInMonth).fill(0);
+    entries.forEach(e=>{
+      if(e.player_id !== p.id) return;
+      const day = new Date(e.created_at).getDate();
+      if(day <= daysInMonth) dailyTotals[day-1] += e.points;
+    });
+    let running = 0;
+    const cumulative = dailyTotals.map(v=> running += v);
+    return {
+      label: p.name,
+      data: cumulative,
+      borderColor: colors[p.id] || "#9B9EA6",
+      backgroundColor: "transparent",
+      tension: 0.25,
+      pointRadius: 2,
+    };
+  });
+
+  const ctx = document.getElementById("trendChart");
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#EDEDEC" } } },
+      scales: {
+        x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+      }
+    }
+  });
+}
+
+function renderFeed(entries){
+  const feed = document.getElementById("feed");
+  if(entries.length === 0){
+    feed.innerHTML = `<div class="empty">Noch keine Einträge.</div>`;
+    return;
+  }
+  const byId = {};
+  PLAYERS.forEach(p=> byId[p.id] = p.name);
+  const catLabel = {};
+  CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
+
+  feed.innerHTML = entries.slice(0, 25).map(e=>{
+    const d = new Date(e.created_at);
+    const time = d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+    const catText = catLabel[e.category]||e.category;
+    return `<div class="feed-item">
+      <div><span class="feed-name">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
+      <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span><button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button></div>
+    </div>`;
+  }).join("");
+}
+
+async function loadAndRender(){
+  const {start, end} = monthBounds();
+  const { data, error } = await sb
+    .from("entries")
+    .select("*")
+    .gte("created_at", start)
+    .lt("created_at", end)
+    .order("created_at", {ascending:false});
+  if(error){ console.error(error); return; }
+  currentMonthEntries = data;
+  renderBoard(data);
+  renderChart(data);
+  renderFeed(data);
+}
+
+function subscribeRealtime(){
+  sb.channel("entries-live")
+    .on("postgres_changes", {event:"*", schema:"public", table:"entries"}, ()=>{
+      loadAndRender();
+    })
+    .subscribe();
+}
+
+async function init(){
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const now = new Date();
+  document.getElementById("monthLabel").textContent =
+    now.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+
+  renderWho();
+  renderCats();
+  await loadAndRender();
+  subscribeRealtime();
+}
+
+init();
 </script>
 </body>
 </html>
