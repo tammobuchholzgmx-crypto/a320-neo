@@ -484,7 +484,7 @@ const PLAYERS = [
 const CATEGORIES = [
   { id: "bett",               label: "Bett gemacht",                                  type: "flat",    points: 1,  limit: "day" },
   { id: "cardio",              label: "Cardio",                                        type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
-  { id: "sport",                label: "Sport",                                        type: "flat",    points: 50 },
+  { id: "sport",                label: "Sport",                                        type: "flat",    points: 60 },
   { id: "dehnen",                label: "Dehnen",                                       type: "flat",    points: 20, limit: "day" },
   { id: "schritte",               label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
   { id: "lesen",                   label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
@@ -1010,6 +1010,14 @@ async function init(){
   renderCats();
   await loadAndRender();
   subscribeRealtime();
+
+  // Handys unterbrechen die Live-Verbindung im Hintergrund (Akku sparen).
+  // Beim Zurückkommen wird zwar neu verbunden, aber verpasste Änderungen
+  // kommen nicht automatisch nach — deshalb hier einmal frisch nachladen.
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "visible") loadAndRender();
+  });
+  window.addEventListener("focus", ()=> loadAndRender());
 }
 
 init();
