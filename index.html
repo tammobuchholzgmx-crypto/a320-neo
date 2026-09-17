@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scoreboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%86%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -80,9 +81,15 @@
   /* Scoreboard cards */
   .board{
     display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:10px;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:8px;
     margin-bottom:24px;
+  }
+  @media (max-width: 420px){
+    .board{ gap:6px; }
+    .card{ padding:12px 8px; }
+    .p-score{ font-size:24px; }
+    .p-name{ font-size:12px; }
   }
   .card{
     background:var(--panel);
@@ -128,6 +135,18 @@
     font-size:12px;
     color:var(--text-dim);
   }
+  .rank-arrow{
+    font-size:11px;
+    margin-left:4px;
+  }
+  .rank-arrow.up{color:var(--green);}
+  .rank-arrow.down{color:var(--red);}
+  .streak-risk{color:var(--gold);}
+  @keyframes leaderFlash{
+    0%{ box-shadow:0 0 0 0 rgba(232,185,63,0.6); }
+    100%{ box-shadow:0 0 0 14px rgba(232,185,63,0); }
+  }
+  .card.rank-1.flash{ animation: leaderFlash 0.9s ease-out; }
 
   /* Chart */
   section.chart{
@@ -192,6 +211,7 @@
     text-align:left;
   }
   .cat-btn:active{border-color:var(--blue);}
+  .cat-btn.done{opacity:0.45;cursor:default;}
   .cat-btn.numeric{cursor:default;flex-wrap:wrap;gap:8px;}
   .numeric-input{display:flex;gap:6px;}
   .numeric-input input{
@@ -314,15 +334,15 @@ const PLAYERS = [
   { id: "p3", name: "Lennart" },
 ];
 
-// Kategorien: "flat" = fester Punktwert pro Klick, "numeric" = Zahl eingeben,
-// Punkte werden aus der Menge berechnet.
+// Kategorien: "flat" = fester Punktwert pro Klick, "numeric" = Zahl eingeben.
+// "limit": "day" = max. 1x pro Tag, "week-sunday" = nur sonntags, max. 1x pro Woche.
 const CATEGORIES = [
-  { id: "sport",             label: "Sport",                                       type: "flat",    points: 50 },
-  { id: "lesen",              label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
-  { id: "screentime_besser",  label: "Screenzeit: 30 Min weniger als letzte Woche", type: "flat",    points: 10 },
-  { id: "screentime_ziel",    label: "Screenzeit-Wochenschnitt unter 2h",           type: "flat",    points: 50 },
-  { id: "schritte",           label: "Schritte",                                    type: "numeric", unitLabel: "Schritte", unitSize: 1000, pointsPerUnit: 1 },
-  { id: "bett",               label: "Bett gemacht",                                type: "flat",    points: 1 },
+  { id: "bett",               label: "Bett gemacht",                                type: "flat",    points: 1,  limit: "day" },
+  { id: "sport",               label: "Sport",                                       type: "flat",    points: 50 },
+  { id: "schritte",             label: "Schritte",                                    type: "numeric", unitLabel: "Schritte", unitSize: 1000, pointsPerUnit: 1 },
+  { id: "lesen",                 label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
+  { id: "screentime_besser",     label: "Screenzeit: 30 Min weniger als letzte Woche", type: "flat",    points: 10, limit: "week-sunday" },
+  { id: "screentime_ziel",       label: "Screenzeit-Wochenschnitt unter 2h",           type: "flat",    points: 50, limit: "week-sunday" },
 ];
 
 // Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen, informativ)
@@ -352,19 +372,70 @@ function dateKey(d){
   return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
 }
 
-// Streak = Anzahl aufeinanderfolgender Tage (bis heute zurück), an denen
-// diese Person mindestens einen Eintrag hatte, egal welche Kategorie.
+// Streak = Anzahl aufeinanderfolgender Tage mit mindestens einem Eintrag.
+// Wenn heute noch nichts eingetragen wurde, zählt die Streak trotzdem ab
+// gestern weiter (sie ist ja bis Mitternacht noch "am Leben"), wird aber
+// als "atRisk" markiert, damit man motiviert wird, sie heute zu retten.
 function computeStreak(playerId, entries){
   const days = new Set(
     entries.filter(e=> e.player_id === playerId).map(e=> dateKey(new Date(e.created_at)))
   );
+  const today = new Date();
+  const atRisk = !days.has(dateKey(today));
+  const cursor = new Date(today);
+  if(atRisk) cursor.setDate(cursor.getDate()-1); // heute noch offen, bei gestern anfangen
   let streak = 0;
-  const cursor = new Date();
   while(days.has(dateKey(cursor))){
     streak++;
     cursor.setDate(cursor.getDate()-1);
   }
-  return streak;
+  return { count: streak, atRisk: atRisk && streak > 0 };
+}
+
+function dayBounds(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start); end.setDate(end.getDate()+1);
+  return {start, end};
+}
+
+function weekBounds(){
+  const now = new Date();
+  const dow = (now.getDay() + 6) % 7; // Montag = 0
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+  const end = new Date(start); end.setDate(end.getDate()+7);
+  return {start, end};
+}
+
+function isSunday(){
+  return new Date().getDay() === 0;
+}
+
+// Für Kategorien mit "limit": prüft ob heute/diese Woche schon geloggt wurde,
+// bzw. ob heute überhaupt der richtige Tag dafür ist ("week-sunday").
+function categoryLockState(cat){
+  if(!cat.limit || !currentPlayer) return { locked: false };
+
+  if(cat.limit === "day"){
+    const {start, end} = dayBounds();
+    const done = currentMonthEntries.some(e=>
+      e.player_id === currentPlayer && e.category === cat.id &&
+      new Date(e.created_at) >= start && new Date(e.created_at) < end
+    );
+    return done ? { locked: true, reason: "heute schon erledigt" } : { locked: false };
+  }
+
+  if(cat.limit === "week-sunday"){
+    if(!isSunday()) return { locked: true, reason: "nur sonntags" };
+    const {start, end} = weekBounds();
+    const done = currentMonthEntries.some(e=>
+      e.player_id === currentPlayer && e.category === cat.id &&
+      new Date(e.created_at) >= start && new Date(e.created_at) < end
+    );
+    return done ? { locked: true, reason: "diese Woche schon erledigt" } : { locked: false };
+  }
+
+  return { locked: false };
 }
 
 function renderWho(){
@@ -378,6 +449,7 @@ function renderWho(){
       currentPlayer = p.id;
       localStorage.setItem("sb_current_player", p.id);
       renderWho();
+      renderCats();
     };
     el.appendChild(btn);
   });
@@ -388,9 +460,11 @@ function renderCats(){
   el.innerHTML = "";
   CATEGORIES.forEach(c=>{
     if(c.type === "flat"){
+      const lock = categoryLockState(c);
       const btn = document.createElement("button");
-      btn.className = "cat-btn";
-      btn.innerHTML = `<span>${c.label}</span><span class="cat-pts">+${c.points}</span>`;
+      btn.className = "cat-btn" + (lock.locked ? " done" : "");
+      btn.disabled = lock.locked;
+      btn.innerHTML = `<span>${c.label}${lock.locked ? " · " + lock.reason : ""}</span><span class="cat-pts">+${c.points}</span>`;
       btn.onclick = ()=> logFlat(c);
       el.appendChild(btn);
     } else {
@@ -409,6 +483,8 @@ function renderCats(){
 
 async function logFlat(cat){
   if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
+  const lock = categoryLockState(cat);
+  if(lock.locked){ alert("Geht gerade nicht: " + lock.reason + "."); return; }
   await insertEntry(cat.id, cat.points, `+${cat.points} für ${cat.label}`);
 }
 
@@ -448,6 +524,8 @@ function showToast(msg){
   setTimeout(()=> t.classList.remove("show"), 1800);
 }
 
+let previousRanks = {};
+
 function renderBoard(entries){
   const totals = {};
   PLAYERS.forEach(p=> totals[p.id] = 0);
@@ -457,16 +535,29 @@ function renderBoard(entries){
     .sort((a,b)=> b.pts - a.pts);
 
   const topScore = ranked[0].pts;
+  const previousLeader = Object.keys(previousRanks).find(id=> previousRanks[id] === 0);
+  const newLeaderChanged = previousLeader && previousLeader !== ranked[0].id && ranked[0].pts > 0;
 
   const board = document.getElementById("board");
   board.innerHTML = "";
   ranked.forEach((p, i)=>{
     const card = document.createElement("div");
-    card.className = "card" + (i===0 && p.pts>0 ? " rank-1" : "");
-    const streakHtml = p.streak > 0 ? `<div class="p-meta">🔥 ${p.streak} Tage Streak</div>` : "";
+    const isNewLeader = i===0 && p.pts>0;
+    card.className = "card" + (isNewLeader ? " rank-1" : "") + (isNewLeader && newLeaderChanged ? " flash" : "");
+
+    let arrowHtml = "";
+    if(previousRanks[p.id] !== undefined && previousRanks[p.id] !== i){
+      arrowHtml = previousRanks[p.id] > i
+        ? `<span class="rank-arrow up">▲</span>`
+        : `<span class="rank-arrow down">▼</span>`;
+    }
+
+    const streakHtml = p.streak.count > 0
+      ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">🔥 ${p.streak.count} Tage Streak${p.streak.atRisk ? " · heute noch retten!" : ""}</div>`
+      : "";
     const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} Pkt bis Platz 1</div>` : "";
     card.innerHTML = `
-      <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}</div>
+      <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
       <div class="p-name">${p.name}</div>
       <div class="p-score">${p.pts}<span class="unit">Pkt</span></div>
       ${streakHtml}
@@ -474,6 +565,9 @@ function renderBoard(entries){
     `;
     board.appendChild(card);
   });
+
+  previousRanks = {};
+  ranked.forEach((p, i)=> previousRanks[p.id] = i);
 
   const leader = ranked[0];
   const banner = document.getElementById("stakesBanner");
@@ -560,6 +654,7 @@ async function loadAndRender(){
   renderBoard(data);
   renderChart(data);
   renderFeed(data);
+  renderCats();
 }
 
 function subscribeRealtime(){
