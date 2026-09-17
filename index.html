@@ -61,6 +61,78 @@
     font-size:14px;
   }
 
+  .ticker{
+    font-size:12px;
+    color:var(--text-dim);
+    margin:-4px 0 16px;
+    min-height:16px;
+  }
+  @keyframes tickerPulse{
+    0%{ opacity:0; transform:translateY(-3px); }
+    100%{ opacity:1; transform:translateY(0); }
+  }
+  .ticker.pulse{ animation: tickerPulse 0.4s ease-out; }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:100;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px;
+    max-width:420px;
+    width:100%;
+    position:relative;
+    max-height:80vh;
+    overflow-y:auto;
+  }
+  .modal-box h3{ margin:0 0 4px; font-size:16px; font-family:'Archivo'; }
+  .modal-sub{ margin:0 0 14px; font-size:12px; color:var(--text-dim); }
+  .modal-close{
+    position:absolute;
+    top:12px; right:12px;
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:20px;
+    cursor:pointer;
+    line-height:1;
+    padding:4px;
+  }
+  .modal-box input{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:10px;
+    font-size:16px;
+    font-family:'Inter';
+    margin-bottom:14px;
+  }
+  .modal-actions{ display:flex; gap:8px; justify-content:flex-end; }
+  .modal-actions button{
+    border:none;
+    border-radius:6px;
+    padding:9px 14px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    background:var(--panel-2);
+    color:var(--text);
+  }
+  .modal-actions button.primary{ background:var(--blue); color:#fff; }
+
   /* Month archive nav */
   .month-nav{
     display:flex;
@@ -144,8 +216,10 @@
     padding:16px 12px;
     position:relative;
     overflow:hidden;
+    cursor:pointer;
   }
   .card.rank-1{border-color:var(--gold);}
+  .card:active{border-color:var(--blue);}
   .rank-tag{
     font-size:11px;
     color:var(--text-dim);
@@ -181,6 +255,13 @@
     font-size:12px;
     color:var(--text-dim);
   }
+  .p-compare{
+    margin-top:4px;
+    font-size:11px;
+    color:var(--text-dim);
+  }
+  .p-compare.up{color:var(--green);}
+  .p-compare.down{color:var(--red);}
   .rank-arrow{
     font-size:11px;
     margin-left:4px;
@@ -253,6 +334,7 @@
     padding:12px;
   }
   .wallet-name{font-size:12px;color:var(--text-dim);margin-bottom:4px;}
+  .wallet-badges{font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;}
   .wallet-bal{
     font-family:'Archivo',sans-serif;
     font-weight:800;
@@ -417,6 +499,17 @@
     line-height:1;
   }
   .del-btn:hover{color:var(--red);}
+  .edit-btn{
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:14px;
+    cursor:pointer;
+    margin-left:6px;
+    padding:0 4px;
+    line-height:1;
+  }
+  .edit-btn:hover{color:var(--blue);}
   .empty{color:var(--text-dim);font-size:13px;padding:16px 0;}
 </style>
 </head>
@@ -427,6 +520,8 @@
     <h1>Scoreboard</h1>
     <div class="month-label" id="monthLabel"></div>
   </header>
+
+  <div class="ticker" id="ticker"></div>
 
   <div class="month-nav">
     <select id="monthSelect" onchange="onMonthSelect()"></select>
@@ -466,6 +561,12 @@
 
 </div>
 <div class="toast" id="toast"></div>
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -487,7 +588,7 @@ const CATEGORIES = [
   { id: "sport",                label: "Sport",                                        type: "flat",    points: 60 },
   { id: "dehnen",                label: "Dehnen",                                       type: "flat",    points: 20, limit: "day" },
   { id: "schritte",               label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
-  { id: "lesen",                   label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
+  { id: "lesen",                   label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
   { id: "screentime_besser",        label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-sunday" },
   { id: "screentime_ziel",          label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 50, limit: "week-sunday" },
 ];
@@ -510,7 +611,10 @@ let allSpends = [];        // alle Wallet-Ausgaben, aller Monate
 let currentMonthEntries = []; // nur der ECHTE aktuelle Monat (für Sperr-Logik beim Eintragen)
 let viewedMonthKey = null; // welcher Monat wird gerade angezeigt (Archiv oder aktuell)
 let trendChart = null;
+let pieChartInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
+let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
+let lastTickerEntryId = null;
 
 function pad2(n){ return String(n).padStart(2, "0"); }
 
@@ -631,6 +735,172 @@ function computeWallets(){
   return balances;
 }
 
+// Achievements: Anzahl gewonnener (abgeschlossener) Monate + bester Einzeltag, je Spieler.
+function computeAchievements(){
+  const wins = {};
+  const bestDay = {};
+  PLAYERS.forEach(p=>{ wins[p.id] = 0; bestDay[p.id] = 0; });
+
+  const nowKey = monthKey(new Date());
+  const monthsSeen = new Set(allEntries.map(e=> monthKey(new Date(e.created_at))));
+  monthsSeen.forEach(mk=>{
+    if(mk === nowKey) return;
+    const monthEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === mk);
+    const { winner } = monthWinner(monthEntries);
+    if(winner) wins[winner.id]++;
+  });
+
+  const dayTotals = {};
+  PLAYERS.forEach(p=> dayTotals[p.id] = {});
+  allEntries.forEach(e=>{
+    const dk = dateKey(new Date(e.created_at));
+    dayTotals[e.player_id][dk] = (dayTotals[e.player_id][dk] || 0) + e.points;
+  });
+  PLAYERS.forEach(p=>{
+    const vals = Object.values(dayTotals[p.id]);
+    bestDay[p.id] = vals.length ? Math.max(...vals) : 0;
+  });
+
+  return { wins, bestDay };
+}
+
+// Punktesumme des Vormonats je Spieler, für den "vs. letzter Monat"-Vergleich.
+function previousMonthTotals(){
+  const now = new Date();
+  const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const prevKey = monthKey(prevDate);
+  const prevEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === prevKey);
+  const totals = {};
+  PLAYERS.forEach(p=> totals[p.id] = 0);
+  prevEntries.forEach(e=> totals[e.player_id] += e.points);
+  return { totals, hasData: prevEntries.length > 0 };
+}
+
+// Kurzes haptisches Feedback beim Eintragen — nur Android/Chrome unterstützt das,
+// iOS Safari hat keine vibrate()-API, dort passiert dann einfach nichts.
+function hapticFeedback(){
+  if(navigator.vibrate) navigator.vibrate(15);
+}
+
+function relativeTime(date){
+  const mins = Math.floor((Date.now() - date.getTime()) / 60000);
+  if(mins < 1) return "gerade eben";
+  if(mins < 60) return `vor ${mins} Min`;
+  const hours = Math.floor(mins / 60);
+  if(hours < 24) return `vor ${hours} Std`;
+  const days = Math.floor(hours / 24);
+  return `vor ${days} Tag${days > 1 ? "en" : ""}`;
+}
+
+function updateTicker(){
+  const el = document.getElementById("ticker");
+  if(!el) return;
+  if(allEntries.length === 0){ el.textContent = ""; lastTickerEntryId = null; return; }
+
+  const latest = [...allEntries].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))[0];
+  const byId = {}; PLAYERS.forEach(p=> byId[p.id] = p.name);
+  const catLabel = {}; CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
+
+  el.textContent = `${byId[latest.player_id] || "?"}: +${latest.points} ${catLabel[latest.category] || latest.category} · ${relativeTime(new Date(latest.created_at))}`;
+
+  if(latest.id !== lastTickerEntryId){
+    lastTickerEntryId = latest.id;
+    el.classList.remove("pulse");
+    void el.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
+    el.classList.add("pulse");
+  }
+}
+
+function openModal(html){
+  document.getElementById("modalContent").innerHTML = html;
+  document.getElementById("modalOverlay").classList.add("show");
+}
+
+function closeModal(){
+  document.getElementById("modalOverlay").classList.remove("show");
+  document.getElementById("modalContent").innerHTML = "";
+  if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance = null; }
+}
+
+function closeModalOnOverlay(e){
+  if(e.target.id === "modalOverlay") closeModal();
+}
+
+// Klick auf eine Spieler-Karte: Kuchendiagramm, wie sich die Punkte im
+// gerade angezeigten Zeitraum (aktueller Monat oder Archiv-Monat) zusammensetzen.
+function openPlayerBreakdown(playerId){
+  const player = PLAYERS.find(p=> p.id === playerId);
+  const entries = lastViewedEntries.filter(e=> e.player_id === playerId);
+
+  const totalsByCategory = {};
+  CATEGORIES.forEach(c=> totalsByCategory[c.id] = 0);
+  entries.forEach(e=> totalsByCategory[e.category] = (totalsByCategory[e.category] || 0) + e.points);
+
+  const usedCats = CATEGORIES.filter(c=> totalsByCategory[c.id] > 0);
+
+  if(usedCats.length === 0){
+    openModal(`<h3>${player.name}</h3><p class="modal-sub">Noch keine Punkte in diesem Zeitraum.</p>`);
+    return;
+  }
+
+  openModal(`<h3>${player.name}</h3><p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`);
+
+  const palette = ["#4C6FFF","#E8B93F","#3FBF7F","#E2584D","#9B6FFF","#4FD1D9","#FF8FB1","#F2994A"];
+  const ctx = document.getElementById("pieChart");
+  pieChartInstance = new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: usedCats.map(c=> c.label),
+      datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: palette }]
+    },
+    options: {
+      plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12, font: {size: 11} } } }
+    }
+  });
+}
+
+// Bearbeiten geht nur bei numerischen Kategorien (Lesen, Schritte, Cardio) —
+// bei festen Kategorien (Sport, Bett gemacht, ...) steht der Punktwert fest,
+// da gibt's nichts zu bearbeiten außer Löschen.
+function openEditModal(entryId){
+  const entry = allEntries.find(e=> e.id === entryId);
+  if(!entry) return;
+  const cat = CATEGORIES.find(c=> c.id === entry.category);
+  if(!cat || cat.type !== "numeric") return;
+
+  const multiplier = cat.displayMultiplier || 1;
+  const currentValue = entry.raw_value != null
+    ? entry.raw_value / multiplier
+    : Math.round((entry.points / cat.pointsPerUnit) * cat.unitSize);
+
+  openModal(`
+    <h3>Eintrag bearbeiten</h3>
+    <p class="modal-sub">${cat.label}</p>
+    <input type="number" min="0" step="1" id="editValue" value="${currentValue}" placeholder="${cat.unitLabel}">
+    <div class="modal-actions">
+      <button onclick="closeModal()">Abbrechen</button>
+      <button class="primary" onclick="saveEditEntry('${entryId}')">Speichern</button>
+    </div>
+  `);
+}
+
+async function saveEditEntry(entryId){
+  const entry = allEntries.find(e=> e.id === entryId);
+  const cat = CATEGORIES.find(c=> c.id === entry.category);
+  const value = parseFloat((document.getElementById("editValue").value || "").replace(",", "."));
+  if(!value || value <= 0){ alert("Trag einen gültigen Wert ein."); return; }
+
+  const points = Math.floor(value / cat.unitSize) * cat.pointsPerUnit;
+  if(points <= 0){ alert(`Das sind noch keine ${cat.unitSize} ${cat.unitLabel}.`); return; }
+  const multiplier = cat.displayMultiplier || 1;
+  const rawValue = value * multiplier;
+
+  const { error } = await sb.from("entries").update({ points, raw_value: rawValue }).eq("id", entryId);
+  if(error){ alert("Fehler beim Speichern: " + error.message); return; }
+  closeModal();
+  showToast("Eintrag aktualisiert");
+}
+
 function renderWho(){
   const el = document.getElementById("who");
   el.innerHTML = "";
@@ -704,6 +974,7 @@ async function insertEntry(categoryId, points, toastMsg, rawValue){
     raw_value: rawValue ?? null
   });
   if(error){ alert("Fehler beim Speichern: " + error.message); return; }
+  hapticFeedback();
   showToast(toastMsg);
 }
 
@@ -743,6 +1014,7 @@ async function deleteSpend(id){
 
 function renderWallet(){
   const balances = computeWallets();
+  const { wins, bestDay } = computeAchievements();
   const byId = {}; PLAYERS.forEach(p=> byId[p.id] = p.name);
 
   const cardsEl = document.getElementById("walletCards");
@@ -751,6 +1023,7 @@ function renderWallet(){
     return `<div class="wallet-card">
       <div class="wallet-name">${p.name}</div>
       <div class="wallet-bal${bal < 0 ? " neg" : ""}">${formatEuro(bal)}</div>
+      <div class="wallet-badges">🏅 ${wins[p.id]}× Monatssieg${wins[p.id] === 1 ? "" : "e"}<br>📈 Bester Tag: ${bestDay[p.id]} Pkt</div>
       <button class="wallet-spend-btn" onclick="toggleSpendForm('${p.id}')">Ausgeben</button>
       <div class="spend-form" id="spend-form-${p.id}">
         <input type="number" step="0.01" min="0" placeholder="€ Betrag" id="spend-amount-${p.id}">
@@ -798,9 +1071,11 @@ function renderBoard(entries, isLive){
   const tiedAtTop = topScore > 0 && ranked.filter(p=> p.pts === topScore).length > 1;
 
   let newLeaderChanged = false;
+  let prevMonth = null;
   if(isLive){
     const previousLeader = Object.keys(previousRanks).find(id=> previousRanks[id] === 0);
     newLeaderChanged = !!previousLeader && previousLeader !== ranked[0].id && topScore > 0 && !tiedAtTop;
+    prevMonth = previousMonthTotals();
   }
 
   const board = document.getElementById("board");
@@ -809,6 +1084,7 @@ function renderBoard(entries, isLive){
     const card = document.createElement("div");
     const isSoleLeader = i === 0 && p.pts > 0 && !tiedAtTop;
     card.className = "card" + (isSoleLeader ? " rank-1" : "") + (isSoleLeader && newLeaderChanged ? " flash" : "");
+    card.onclick = ()=> openPlayerBreakdown(p.id);
 
     let extraHtml = "";
     if(isLive){
@@ -822,8 +1098,15 @@ function renderBoard(entries, isLive){
         ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">🔥 ${p.streak.count} Tage Streak${p.streak.atRisk ? " · heute noch retten!" : ""}</div>`
         : "";
       const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} Pkt bis Platz 1</div>` : "";
+      let compareHtml = "";
+      if(prevMonth && prevMonth.hasData){
+        const delta = p.pts - prevMonth.totals[p.id];
+        const dir = delta > 0 ? "up" : delta < 0 ? "down" : "";
+        const sign = delta > 0 ? "+" : "";
+        compareHtml = `<div class="p-compare ${dir}">${sign}${delta} vs. Vormonat</div>`;
+      }
       card.dataset.arrow = arrowHtml;
-      extraHtml = streakHtml + gapHtml;
+      extraHtml = streakHtml + gapHtml + compareHtml;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
         <div class="p-name">${p.name}</div>
@@ -926,9 +1209,11 @@ function renderFeed(entries){
     const d = new Date(e.created_at);
     const time = d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
     const catText = catLabel[e.category]||e.category;
+    const cat = CATEGORIES.find(c=> c.id === e.category);
+    const editBtn = cat && cat.type === "numeric" ? `<button class="edit-btn" onclick="openEditModal('${e.id}')" title="Bearbeiten">✎</button>` : "";
     return `<div class="feed-item">
       <div><span class="feed-name">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
-      <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span><button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button></div>
+      <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button></div>
     </div>`;
   }).join("");
 }
@@ -965,6 +1250,7 @@ function applyView(){
   const [y, m] = viewedMonthKey.split("-").map(Number);
   const viewedDate = new Date(y, m-1, 1);
   const viewedEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === viewedMonthKey);
+  lastViewedEntries = viewedEntries;
 
   currentMonthEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === nowKey);
 
@@ -980,6 +1266,7 @@ function applyView(){
   renderFeed(viewedEntries);
   renderCats();
   renderWallet();
+  updateTicker();
 }
 
 async function loadAndRender(){
@@ -1018,6 +1305,7 @@ async function init(){
     if(document.visibilityState === "visible") loadAndRender();
   });
   window.addEventListener("focus", ()=> loadAndRender());
+  setInterval(updateTicker, 60000);
 }
 
 init();
