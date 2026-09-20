@@ -48,6 +48,7 @@
     justify-content:space-between;
     margin-bottom:14px;
     gap:12px;
+    flex-wrap:wrap;
   }
   h1{
     font-family:'Archivo',sans-serif;
@@ -243,22 +244,28 @@
   }
   .p-score .unit{font-size:13px;color:var(--text-dim);font-family:'Inter';font-weight:500;margin-left:3px;}
   .p-meta{
-    margin-top:8px;
-    font-size:12px;
+    margin-top:6px;
+    font-size:11px;
     color:var(--text-dim);
-    display:flex;
-    align-items:center;
-    gap:4px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .p-gap{
-    margin-top:8px;
-    font-size:12px;
+    margin-top:6px;
+    font-size:11px;
     color:var(--text-dim);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .p-compare{
     margin-top:4px;
     font-size:11px;
     color:var(--text-dim);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .p-compare.up{color:var(--green);}
   .p-compare.down{color:var(--red);}
@@ -333,13 +340,24 @@
     border-radius:8px;
     padding:12px;
   }
-  .wallet-name{font-size:12px;color:var(--text-dim);margin-bottom:4px;}
-  .wallet-badges{font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;}
+  .wallet-name{font-size:12px;color:var(--text-dim);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wallet-badges{margin-bottom:8px;}
+  .wallet-badges div{
+    font-size:11px;
+    color:var(--text-dim);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    line-height:1.5;
+  }
   .wallet-bal{
     font-family:'Archivo',sans-serif;
     font-weight:800;
-    font-size:20px;
+    font-size:19px;
     margin-bottom:8px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .wallet-bal.neg{color:var(--red);}
   .wallet-spend-btn{
@@ -475,6 +493,15 @@
     margin:0 0 10px;
     color:var(--text-dim);
   }
+  section.feed h2.feed-toggle{
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin:0;
+    padding:4px 0;
+    user-select:none;
+  }
   .feed-item{
     display:flex;
     justify-content:space-between;
@@ -555,8 +582,8 @@
   </section>
 
   <section class="feed">
-    <h2>Letzte Einträge</h2>
-    <div id="feed"></div>
+    <h2 class="feed-toggle" onclick="toggleFeed()">Letzte Einträge <span id="feedToggleIcon">▸</span></h2>
+    <div id="feed" style="display:none"></div>
   </section>
 
 </div>
@@ -1035,7 +1062,7 @@ function renderWallet(){
     return `<div class="wallet-card">
       <div class="wallet-name">${p.name}</div>
       <div class="wallet-bal${bal < 0 ? " neg" : ""}">${formatEuro(bal)}</div>
-      <div class="wallet-badges">🏅 ${wins[p.id]}× Monatssieg${wins[p.id] === 1 ? "" : "e"}<br>📈 Bester Tag: ${bestDay[p.id]} Pkt</div>
+      <div class="wallet-badges"><div>🏅 ${wins[p.id]} Sieg${wins[p.id] === 1 ? "" : "e"}</div><div>📈 Bester Tag ${bestDay[p.id]}</div></div>
       <button class="wallet-spend-btn" onclick="toggleSpendForm('${p.id}')">Ausgeben</button>
       <div class="spend-form" id="spend-form-${p.id}">
         <input type="number" step="0.01" min="0" placeholder="€ Betrag" id="spend-amount-${p.id}">
@@ -1109,9 +1136,9 @@ function renderBoard(entries, isLive){
           : `<span class="rank-arrow down">▼</span>`;
       }
       const streakHtml = p.streak && p.streak.count > 0
-        ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">🔥 ${p.streak.count} Tage Streak${p.streak.atRisk ? " · heute noch retten!" : ""}</div>`
+        ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">🔥 ${p.streak.count} Tage${p.streak.atRisk ? " ⚠️" : ""}</div>`
         : "";
-      const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} Pkt bis Platz 1</div>` : "";
+      const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
       let compareHtml = "";
       if(prevMonth && prevMonth.hasData){
         const delta = p.pts - prevMonth.totals[p.id];
@@ -1120,7 +1147,7 @@ function renderBoard(entries, isLive){
         compareHtml = `<div class="p-compare ${dir}">${sign}${delta} vs. Vormonat</div>`;
       }
       card.dataset.arrow = arrowHtml;
-      const todayHtml = `<div class="p-meta">☀️ Heute: ${todayPts[p.id]} Pkt</div>`;
+      const todayHtml = `<div class="p-meta">☀️ Heute ${todayPts[p.id]}</div>`;
       extraHtml = todayHtml + streakHtml + gapHtml + compareHtml;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
@@ -1149,20 +1176,22 @@ function renderBoard(entries, isLive){
   if(isLive){
     if(tiedAtTop){
       const names = ranked.filter(p=> p.pts === topScore).map(p=> p.name).join(" & ");
-      banner.innerHTML = `Gleichstand an der Spitze zwischen <strong>${names}</strong> — noch ist alles offen für die ${MONTHLY_PRIZE_EUR}€.`;
+      banner.innerHTML = `Gleichstand: <strong>${names}</strong> — ${MONTHLY_PRIZE_EUR}€ noch offen.`;
     } else if(topScore > 0){
-      banner.innerHTML = `<strong>${ranked[0].name}</strong> liegt aktuell vorn und würde am Monatsende insgesamt ${MONTHLY_PRIZE_EUR}€ von den beiden anderen zusammen bekommen.`;
+      const second = ranked[1], third = ranked[2];
+      banner.innerHTML = `<strong>${ranked[0].name}</strong> führt · +${MONTHLY_PRIZE_EUR}€ (${third.name} -10€, ${second.name} -5€)`;
     } else {
-      banner.innerHTML = `Noch keine Einträge diesen Monat. Wer am Ende vorn liegt, bekommt insgesamt ${MONTHLY_PRIZE_EUR}€ von den beiden anderen zusammen.`;
+      banner.innerHTML = `Noch keine Einträge. Sieger bekommt ${MONTHLY_PRIZE_EUR}€.`;
     }
   } else {
     if(tiedAtTop){
       const names = ranked.filter(p=> p.pts === topScore).map(p=> p.name).join(" & ");
-      banner.innerHTML = `In diesem Monat gab es einen Gleichstand zwischen <strong>${names}</strong> — die ${MONTHLY_PRIZE_EUR}€ wurden deshalb nicht automatisch vergeben. Klärt das unter euch.`;
+      banner.innerHTML = `Gleichstand: <strong>${names}</strong> — ${MONTHLY_PRIZE_EUR}€ nicht vergeben.`;
     } else if(topScore > 0){
-      banner.innerHTML = `<strong>${ranked[0].name}</strong> war Sieger dieses Monats mit ${topScore} Punkten und hat ${MONTHLY_PRIZE_EUR}€ von den beiden anderen zusammen bekommen.`;
+      const second = ranked[1], third = ranked[2];
+      banner.innerHTML = `<strong>${ranked[0].name}</strong> war Sieger mit ${topScore} Pkt · +${MONTHLY_PRIZE_EUR}€ (${third.name} -10€, ${second.name} -5€)`;
     } else {
-      banner.innerHTML = `In diesem Monat gab es keine Einträge.`;
+      banner.innerHTML = `Keine Einträge in diesem Monat.`;
     }
   }
 }
@@ -1205,6 +1234,14 @@ function renderChart(entries, viewedDate, isLive){
       }
     }
   });
+}
+
+function toggleFeed(){
+  const el = document.getElementById("feed");
+  const icon = document.getElementById("feedToggleIcon");
+  const show = el.style.display === "none";
+  el.style.display = show ? "" : "none";
+  icon.textContent = show ? "▾" : "▸";
 }
 
 function renderFeed(entries){
