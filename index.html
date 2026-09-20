@@ -776,6 +776,18 @@ function previousMonthTotals(){
   return { totals, hasData: prevEntries.length > 0 };
 }
 
+// Punkte, die heute (Kalendertag) bereits gemacht wurden, je Spieler.
+function todayTotals(){
+  const {start, end} = dayBounds();
+  const totals = {};
+  PLAYERS.forEach(p=> totals[p.id] = 0);
+  allEntries.forEach(e=>{
+    const d = new Date(e.created_at);
+    if(d >= start && d < end) totals[e.player_id] += e.points;
+  });
+  return totals;
+}
+
 // Kurzes haptisches Feedback beim Eintragen — nur Android/Chrome unterstützt das,
 // iOS Safari hat keine vibrate()-API, dort passiert dann einfach nichts.
 function hapticFeedback(){
@@ -1072,10 +1084,12 @@ function renderBoard(entries, isLive){
 
   let newLeaderChanged = false;
   let prevMonth = null;
+  let todayPts = null;
   if(isLive){
     const previousLeader = Object.keys(previousRanks).find(id=> previousRanks[id] === 0);
     newLeaderChanged = !!previousLeader && previousLeader !== ranked[0].id && topScore > 0 && !tiedAtTop;
     prevMonth = previousMonthTotals();
+    todayPts = todayTotals();
   }
 
   const board = document.getElementById("board");
@@ -1106,7 +1120,8 @@ function renderBoard(entries, isLive){
         compareHtml = `<div class="p-compare ${dir}">${sign}${delta} vs. Vormonat</div>`;
       }
       card.dataset.arrow = arrowHtml;
-      extraHtml = streakHtml + gapHtml + compareHtml;
+      const todayHtml = `<div class="p-meta">☀️ Heute: ${todayPts[p.id]} Pkt</div>`;
+      extraHtml = todayHtml + streakHtml + gapHtml + compareHtml;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
         <div class="p-name">${p.name}</div>
