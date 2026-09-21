@@ -97,6 +97,7 @@
     max-height:80vh;
     overflow-y:auto;
   }
+  .modal-box.wide{ max-width:640px; }
   .modal-box h3{ margin:0 0 4px; font-size:16px; font-family:'Archivo'; }
   .modal-sub{ margin:0 0 14px; font-size:12px; color:var(--text-dim); }
   .modal-close{
@@ -326,12 +327,22 @@
     border-radius:10px;
     padding:16px;
     margin-bottom:24px;
+    cursor:pointer;
   }
+  section.chart:active{ border-color:var(--blue); }
   section.chart h2{
     font-size:14px;
     font-weight:600;
     margin:0 0 12px;
     color:var(--text-dim);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .chart-expand-hint{
+    font-size:11px;
+    font-weight:500;
+    color:var(--blue);
   }
   section.chart canvas{max-height:220px;}
 
@@ -604,8 +615,11 @@
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
   </div>
 
-  <section class="chart">
-    <h2 id="chartTitle">Punkteverlauf</h2>
+  <section class="chart" onclick="openChartModal()">
+    <h2>
+      <span id="chartTitle">Punkteverlauf</span>
+      <span class="chart-expand-hint">Details</span>
+    </h2>
     <div class="chart-wrap">
       <div class="skel" id="chartSkeleton"></div>
       <canvas id="trendChart"></canvas>
@@ -637,7 +651,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
-  <div class="modal-box">
+  <div class="modal-box" id="modalBox">
     <button class="modal-close" onclick="closeModal()">×</button>
     <div id="modalContent"></div>
   </div>
@@ -701,9 +715,12 @@ let allSpends = [];        // alle Wallet-Ausgaben, aller Monate
 let currentMonthEntries = []; // nur der ECHTE aktuelle Monat (für Sperr-Logik beim Eintragen)
 let viewedMonthKey = null; // welcher Monat wird gerade angezeigt (Archiv oder aktuell)
 let trendChart = null;
+let bigChartInstance = null;
 let pieChartInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
 let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
+let lastViewedDate = null;  // der Monat (als Date), der gerade angezeigt wird
+let lastViewedIsLive = true;
 let lastTickerEntryId = null;
 let displayedScores = {}; // zuletzt angezeigter Punktestand je Spieler, für den Countup-Effekt
 
@@ -979,15 +996,18 @@ function maybeCelebrateMonthWin(){
   `);
 }
 
-function openModal(html){
+function openModal(html, wide){
   document.getElementById("modalContent").innerHTML = html;
+  document.getElementById("modalBox").classList.toggle("wide", !!wide);
   document.getElementById("modalOverlay").classList.add("show");
 }
 
 function closeModal(){
   document.getElementById("modalOverlay").classList.remove("show");
   document.getElementById("modalContent").innerHTML = "";
+  document.getElementById("modalBox").classList.remove("wide");
   if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance = null; }
+  if(bigChartInstance){ bigChartInstance.destroy(); bigChartInstance = null; }
 }
 
 function closeModalOnOverlay(e){
@@ -1233,6 +1253,23 @@ function showToast(msg){
   setTimeout(()=> t.classList.remove("show"), 1800);
 }
 
+// Rang-Reihenfolge auf Basis der Punkte VOR heute (innerhalb des Monats) —
+// das ist die stabile Vergleichsbasis für den Auf/Ab-Pfeil, damit er den
+// ganzen Tag über konsistent bleibt statt nur kurz nach einer Änderung.
+function dayStartRanking(entries){
+  const {start} = dayBounds();
+  const totals = {};
+  PLAYERS.forEach(p=> totals[p.id] = 0);
+  entries.forEach(e=>{
+    if(new Date(e.created_at) < start) totals[e.player_id] += e.points;
+  });
+  const order = PLAYERS.map(p=> ({ id: p.id, pts: totals[p.id] })).sort((a,b)=> b.pts - a.pts);
+  const allZero = order.every(p=> p.pts === 0);
+  const ranks = {};
+  order.forEach((p, i)=> ranks[p.id] = i);
+  return { ranks, allZero };
+}
+
 function renderBoard(entries, isLive){
   const totals = {};
   PLAYERS.forEach(p=> totals[p.id] = 0);
@@ -1250,11 +1287,13 @@ function renderBoard(entries, isLive){
   let newLeaderChanged = false;
   let prevMonth = null;
   let todayPts = null;
+  let dayStart = null;
   if(isLive){
     const previousLeader = Object.keys(previousRanks).find(id=> previousRanks[id] === 0);
     newLeaderChanged = !!previousLeader && previousLeader !== ranked[0].id && topScore > 0 && !tiedAtTop;
     prevMonth = previousMonthTotals();
     todayPts = todayTotals();
+    dayStart = dayStartRanking(entries);
   }
 
   const board = document.getElementById("board");
@@ -1269,8 +1308,8 @@ function renderBoard(entries, isLive){
     let extraHtml = "";
     if(isLive){
       let arrowHtml = "";
-      if(previousRanks[p.id] !== undefined && previousRanks[p.id] !== i){
-        arrowHtml = previousRanks[p.id] > i
+      if(dayStart && !dayStart.allZero && dayStart.ranks[p.id] !== i){
+        arrowHtml = dayStart.ranks[p.id] > i
           ? `<span class="rank-arrow up">▲</span>`
           : `<span class="rank-arrow down">▼</span>`;
       }
@@ -1340,7 +1379,10 @@ function renderBoard(entries, isLive){
   }
 }
 
-function renderChart(entries, viewedDate, isLive){
+// Baut Labels + Datensätze für den Punkteverlauf — von der kleinen Startseiten-
+// Vorschau UND vom großen Modal-Chart genutzt, damit beide immer exakt
+// dieselben Daten zeigen.
+function buildChartDatasets(entries, viewedDate, isLive){
   const daysInMonth = isLive ? new Date().getDate() : daysInMonthOf(viewedDate.getFullYear(), viewedDate.getMonth());
   const labels = Array.from({length: daysInMonth}, (_, i)=> i+1);
 
@@ -1362,6 +1404,12 @@ function renderChart(entries, viewedDate, isLive){
       pointRadius: 2,
     };
   });
+
+  return { labels, datasets };
+}
+
+function renderChart(entries, viewedDate, isLive){
+  const { labels, datasets } = buildChartDatasets(entries, viewedDate, isLive);
 
   const ctx = document.getElementById("trendChart");
   if(trendChart) trendChart.destroy();
@@ -1388,6 +1436,38 @@ function toggleFeed(){
   const show = el.style.display === "none";
   el.style.display = show ? "" : "none";
   icon.textContent = show ? "▾" : "▸";
+}
+
+// Klick auf den Chart: gleiche Daten, aber größer und übersichtlicher in
+// einem eigenen Fenster. Bewusst nur hier drin — die Startseite bleibt schlank.
+function openChartModal(){
+  if(!lastViewedDate) return;
+
+  const { labels, datasets } = buildChartDatasets(lastViewedEntries, lastViewedDate, lastViewedIsLive);
+  const bigDatasets = datasets.map(ds=> ({ ...ds, pointRadius: 4, borderWidth: 3 }));
+  const title = lastViewedIsLive
+    ? "Punkteverlauf diesen Monat"
+    : "Punkteverlauf " + lastViewedDate.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+
+  openModal(`
+    <h3>${title}</h3>
+    <canvas id="bigChart" style="max-height:340px;"></canvas>
+  `, true);
+
+  const ctx = document.getElementById("bigChart");
+  bigChartInstance = new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets: bigDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+      }
+    }
+  });
 }
 
 function renderFeed(entries){
@@ -1449,6 +1529,8 @@ function applyView(){
   const viewedDate = new Date(y, m-1, 1);
   const viewedEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === viewedMonthKey);
   lastViewedEntries = viewedEntries;
+  lastViewedDate = viewedDate;
+  lastViewedIsLive = isLive;
 
   currentMonthEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === nowKey);
 
