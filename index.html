@@ -30,8 +30,14 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;}
+  html{
+    background:var(--bg);
+  }
   body{
-    background:radial-gradient(circle at 50% 0%, #1E2025 0%, var(--bg) 45%, #101114 100%);
+    background:
+      radial-gradient(700px circle at 50% -120px, rgba(255,255,255,0.035), transparent 65%),
+      var(--bg);
+    background-attachment:fixed;
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -1436,9 +1442,9 @@ function renderChart(entries, viewedDate, isLive){
     data: { labels, datasets },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: "#EDEDEC" } } },
+      plugins: { legend: { labels: { color: "#EDEDEC", font: { size: 11 }, boxWidth: 10 } } },
       scales: {
-        x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        x: { ticks: { color: "#9B9EA6", maxTicksLimit: 6 }, grid: { color: "#2A2D34" } },
         y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
       }
     }
@@ -1502,7 +1508,7 @@ function openChartModal(){
   if(!lastViewedDate) return;
 
   const { labels, datasets } = buildChartDatasets(lastViewedEntries, lastViewedDate, lastViewedIsLive);
-  const bigDatasets = datasets.map(ds=> ({ ...ds, pointRadius: 4, borderWidth: 3 }));
+  const bigDatasets = datasets.map(ds=> ({ ...ds, pointRadius: 3, borderWidth: 3 }));
   const title = lastViewedIsLive
     ? "Punkteverlauf diesen Monat"
     : "Punkteverlauf " + lastViewedDate.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
@@ -1512,21 +1518,21 @@ function openChartModal(){
 
   openModal(`
     <h3>${title}</h3>
-    <canvas id="bigChart" style="max-height:300px;"></canvas>
+    <canvas id="bigChart" style="max-height:230px;"></canvas>
 
-    <h3 style="margin-top:24px;">Wer trägt welche Kategorie</h3>
-    <canvas id="categoryChart" style="max-height:260px;"></canvas>
+    <h3 style="margin-top:20px;">Wer trägt welche Kategorie</h3>
+    <canvas id="categoryChart" style="max-height:${Math.max(140, catData.labels.length * 42)}px;"></canvas>
 
-    <h3 style="margin-top:24px;">Punkte nach Wochentag</h3>
+    <h3 style="margin-top:20px;">Punkte nach Wochentag</h3>
     ${weekData.insight ? `<p class="modal-sub">${weekData.insight}</p>` : ""}
-    <canvas id="weekdayChart" style="max-height:220px;"></canvas>
+    <canvas id="weekdayChart" style="max-height:170px;"></canvas>
   `, true);
 
-  const barOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12 } } },
-  };
+  // Etwas größere Legenden-Schrift & Abstände — leichter mit dem Finger zu treffen,
+  // falls jemand einzelne Personen in der Legende ein-/ausblenden will.
+  const legend = { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12, font: { size: 12 }, padding: 12 } };
+  const tickColor = { color: "#9B9EA6", font: { size: 11 } };
+  const gridColor = { color: "#2A2D34" };
 
   bigChartInstance = new Chart(document.getElementById("bigChart"), {
     type: "line",
@@ -1534,10 +1540,11 @@ function openChartModal(){
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12 } } },
+      plugins: { legend },
       scales: {
-        x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
-        y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        // Bei ~30 Tagen sonst zu viele/zu enge Achsen-Beschriftungen auf schmalen Screens
+        x: { ticks: { ...tickColor, maxTicksLimit: 7 }, grid: gridColor },
+        y: { ticks: tickColor, grid: gridColor },
       }
     }
   });
@@ -1546,10 +1553,16 @@ function openChartModal(){
     type: "bar",
     data: { labels: catData.labels, datasets: catData.datasets },
     options: {
-      ...barOptions,
+      responsive: true,
+      maintainAspectRatio: false,
+      // Horizontal statt vertikal: Kategorie-Namen sind Text und lesen sich
+      // liegend auf schmalen Handy-Screens deutlich besser als gedrehte
+      // oder abgeschnittene Achsen-Beschriftungen unten.
+      indexAxis: "y",
+      plugins: { legend },
       scales: {
-        x: { stacked: true, ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
-        y: { stacked: true, ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        x: { stacked: true, ticks: tickColor, grid: gridColor },
+        y: { stacked: true, ticks: { ...tickColor, autoSkip: false }, grid: { display: false } },
       }
     }
   });
@@ -1562,8 +1575,8 @@ function openChartModal(){
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
-        y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        x: { ticks: tickColor, grid: gridColor },
+        y: { ticks: tickColor, grid: gridColor },
       }
     }
   });
