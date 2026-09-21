@@ -134,6 +134,43 @@
   }
   .modal-actions button.primary{ background:var(--blue); color:#fff; }
 
+  /* Skeleton-Loading */
+  .skel{
+    background:linear-gradient(90deg, var(--panel-2) 25%, var(--line) 37%, var(--panel-2) 63%);
+    background-size:400% 100%;
+    animation:skelShimmer 1.4s ease infinite;
+    border-radius:6px;
+  }
+  @keyframes skelShimmer{
+    0%{ background-position:100% 50%; }
+    100%{ background-position:0 50%; }
+  }
+  .chart-wrap{ position:relative; min-height:180px; }
+  .chart-wrap #chartSkeleton{ position:absolute; inset:0; }
+
+  /* Confetti */
+  .confetti-container{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+    z-index:150;
+  }
+  .confetti-piece{
+    position:absolute;
+    top:-12px;
+    width:8px;
+    height:14px;
+    opacity:0.9;
+    border-radius:2px;
+    animation-name:confettiFall;
+    animation-timing-function:ease-in;
+    animation-fill-mode:forwards;
+  }
+  @keyframes confettiFall{
+    to{ transform:translateY(110vh) rotate(360deg); opacity:0.3; }
+  }
+
   /* Month archive nav */
   .month-nav{
     display:flex;
@@ -561,11 +598,18 @@
 
   <div id="who"></div>
 
-  <div class="board" id="board"></div>
+  <div class="board" id="board">
+    <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
+    <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
+    <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
+  </div>
 
   <section class="chart">
     <h2 id="chartTitle">Punkteverlauf</h2>
-    <canvas id="trendChart"></canvas>
+    <div class="chart-wrap">
+      <div class="skel" id="chartSkeleton"></div>
+      <canvas id="trendChart"></canvas>
+    </div>
   </section>
 
   <div class="stakes" id="stakesBanner"></div>
@@ -577,7 +621,11 @@
 
   <section class="wallet">
     <h2>Guthaben</h2>
-    <div class="wallet-cards" id="walletCards"></div>
+    <div class="wallet-cards" id="walletCards">
+      <div class="wallet-card"><div class="skel" style="width:60%;height:10px;margin-bottom:8px;"></div><div class="skel" style="width:70%;height:18px;margin-bottom:8px;"></div><div class="skel" style="width:100%;height:28px;"></div></div>
+      <div class="wallet-card"><div class="skel" style="width:60%;height:10px;margin-bottom:8px;"></div><div class="skel" style="width:70%;height:18px;margin-bottom:8px;"></div><div class="skel" style="width:100%;height:28px;"></div></div>
+      <div class="wallet-card"><div class="skel" style="width:60%;height:10px;margin-bottom:8px;"></div><div class="skel" style="width:70%;height:18px;margin-bottom:8px;"></div><div class="skel" style="width:100%;height:28px;"></div></div>
+    </div>
     <div id="walletLog"></div>
   </section>
 
@@ -623,6 +671,21 @@ const CATEGORIES = [
 // Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen)
 const MONTHLY_PRIZE_EUR = 15;
 
+// Feste Akzentfarbe je Spieler — an einer Stelle definiert, überall verwendet
+// (Chart, Karten, Badges, Namens-Auswahl), damit es konsistent bleibt.
+const PLAYER_COLORS = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
+
+// Kleines, einheitliches Icon-Set (inline SVG) statt Emojis — sieht auf jedem
+// Gerät/Betriebssystem gleich aus, statt je nach Emoji-Schriftart anders.
+const ICONS = {
+  flame: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M8.5 14.5c0 2.5 2 4.5 4.5 4.5a4.5 4.5 0 0 0 4.5-4.5c0-2-1.2-3.3-1.8-4.2-.3 1.3-1 2-1.7 2.4.2-2.3-1-4.2-2.3-5.7-.2 2-1 3.2-2 4.3-1 1-1.2 2-1.2 3.2Z"/></svg>',
+  sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>',
+  trend: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>',
+  medal: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="15" r="5"/><path d="M9 10 7 3M15 10l2-7M9 3h6"/></svg>',
+  trophy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Z"/><path d="M8 5H5a3 3 0 0 0 3 3M16 5h3a3 3 0 0 1-3 3"/><path d="M12 13v3M9 20h6M10 20v-2h4v2"/></svg>',
+  warn: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+};
+
 // Fest eingetragene Supabase-Zugangsdaten (Publishable Key ist bewusst öffentlich nutzbar)
 const SUPABASE_URL = "https://dswuwwmkrjwhyzbnyvvi.supabase.co";
 const SUPABASE_KEY = "sb_publishable_tGL-gO7-zsiQw5jwyzeUEA_ef_Cduao";
@@ -642,6 +705,7 @@ let pieChartInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
 let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
 let lastTickerEntryId = null;
+let displayedScores = {}; // zuletzt angezeigter Punktestand je Spieler, für den Countup-Effekt
 
 function pad2(n){ return String(n).padStart(2, "0"); }
 
@@ -821,6 +885,21 @@ function hapticFeedback(){
   if(navigator.vibrate) navigator.vibrate(15);
 }
 
+// Zählt eine Zahl sanft von "from" zu "to" hoch (bzw. runter), statt zu springen.
+function animateNumber(el, from, to, duration){
+  if(!el) return;
+  if(from === to){ el.textContent = to; return; }
+  const start = performance.now();
+  function tick(now){
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3); // ease-out
+    el.textContent = Math.round(from + (to - from) * eased);
+    if(t < 1) requestAnimationFrame(tick);
+    else el.textContent = to;
+  }
+  requestAnimationFrame(tick);
+}
+
 function relativeTime(date){
   const mins = Math.floor((Date.now() - date.getTime()) / 60000);
   if(mins < 1) return "gerade eben";
@@ -848,6 +927,56 @@ function updateTicker(){
     void el.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
     el.classList.add("pulse");
   }
+}
+
+// Kurzer Konfetti-Regen, rein CSS-animiert, keine externe Library nötig.
+function launchConfetti(){
+  const colors = [PLAYER_COLORS.p1, PLAYER_COLORS.p2, PLAYER_COLORS.p3, "#E2584D", "#FF8FB1"];
+  const container = document.createElement("div");
+  container.className = "confetti-container";
+  for(let i=0; i<60; i++){
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    piece.style.left = Math.random()*100 + "vw";
+    piece.style.background = colors[Math.floor(Math.random()*colors.length)];
+    piece.style.animationDuration = (2 + Math.random()*1.5) + "s";
+    piece.style.animationDelay = (Math.random()*0.4) + "s";
+    piece.style.transform = `rotate(${Math.random()*360}deg)`;
+    container.appendChild(piece);
+  }
+  document.body.appendChild(container);
+  setTimeout(()=> container.remove(), 4200);
+}
+
+// Beim ersten Öffnen in einem neuen Monat: falls der Vormonat einen klaren
+// Sieger hatte und wir das auf diesem Gerät noch nicht gefeiert haben,
+// gibt's einen kurzen Showmoment. localStorage merkt sich das pro Gerät,
+// damit es nicht bei jedem Neuladen wieder aufploppt.
+function maybeCelebrateMonthWin(){
+  const now = new Date();
+  const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const prevKey = monthKey(prevDate);
+  const flagKey = "celebrated_" + prevKey;
+  if(localStorage.getItem(flagKey)) return;
+
+  const prevEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === prevKey);
+  if(prevEntries.length === 0) return; // noch keine Daten für den Vormonat da
+
+  localStorage.setItem(flagKey, "1");
+  const { winner } = monthWinner(prevEntries);
+  if(!winner) return; // Gleichstand — nichts zu feiern
+
+  const totals = {};
+  PLAYERS.forEach(p=> totals[p.id] = 0);
+  prevEntries.forEach(e=> totals[e.player_id] += e.points);
+  const label = prevDate.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+
+  launchConfetti();
+  openModal(`
+    <h3>${ICONS.trophy} ${winner.name} hat gewonnen!</h3>
+    <p class="modal-sub">Sieger im ${label} mit ${totals[winner.id]} Punkten — bekommt 15€ von den anderen.</p>
+    <div class="modal-actions"><button class="primary" onclick="closeModal()">Nice!</button></div>
+  `);
 }
 
 function openModal(html){
@@ -938,6 +1067,7 @@ async function saveEditEntry(entryId){
   if(error){ alert("Fehler beim Speichern: " + error.message); return; }
   closeModal();
   showToast("Eintrag aktualisiert");
+  loadAndRender();
 }
 
 function renderWho(){
@@ -946,7 +1076,11 @@ function renderWho(){
   PLAYERS.forEach(p=>{
     const btn = document.createElement("button");
     btn.textContent = p.name;
-    if(p.id === currentPlayer) btn.classList.add("active");
+    if(p.id === currentPlayer){
+      btn.classList.add("active");
+      btn.style.borderColor = PLAYER_COLORS[p.id];
+      btn.style.color = PLAYER_COLORS[p.id];
+    }
     btn.onclick = ()=>{
       currentPlayer = p.id;
       localStorage.setItem("sb_current_player", p.id);
@@ -1015,12 +1149,14 @@ async function insertEntry(categoryId, points, toastMsg, rawValue){
   if(error){ alert("Fehler beim Speichern: " + error.message); return; }
   hapticFeedback();
   showToast(toastMsg);
+  loadAndRender();
 }
 
 async function deleteEntry(id){
   if(!confirm("Diesen Eintrag wirklich löschen?")) return;
   const { error } = await sb.from("entries").delete().eq("id", id);
-  if(error){ alert("Fehler beim Löschen: " + error.message); }
+  if(error){ alert("Fehler beim Löschen: " + error.message); return; }
+  loadAndRender();
 }
 
 function toggleSpendForm(playerId){
@@ -1043,12 +1179,14 @@ async function spendMoney(playerId){
   noteInput.value = "";
   document.getElementById("spend-form-"+playerId).style.display = "none";
   showToast("Ausgegeben: " + formatEuro(amount));
+  loadAndRender();
 }
 
 async function deleteSpend(id){
   if(!confirm("Diese Ausgabe wirklich löschen?")) return;
   const { error } = await sb.from("wallet_spends").delete().eq("id", id);
-  if(error){ alert("Fehler beim Löschen: " + error.message); }
+  if(error){ alert("Fehler beim Löschen: " + error.message); return; }
+  loadAndRender();
 }
 
 function renderWallet(){
@@ -1059,10 +1197,10 @@ function renderWallet(){
   const cardsEl = document.getElementById("walletCards");
   cardsEl.innerHTML = PLAYERS.map(p=>{
     const bal = balances[p.id] || 0;
-    return `<div class="wallet-card">
+    return `<div class="wallet-card" style="border-left:3px solid ${PLAYER_COLORS[p.id]}">
       <div class="wallet-name">${p.name}</div>
       <div class="wallet-bal${bal < 0 ? " neg" : ""}">${formatEuro(bal)}</div>
-      <div class="wallet-badges"><div>🏅 ${wins[p.id]} Sieg${wins[p.id] === 1 ? "" : "e"}</div><div>📈 Bester Tag ${bestDay[p.id]}</div></div>
+      <div class="wallet-badges"><div>${ICONS.medal} ${wins[p.id]} Sieg${wins[p.id] === 1 ? "" : "e"}</div><div>${ICONS.trend} Bester Tag ${bestDay[p.id]}</div></div>
       <button class="wallet-spend-btn" onclick="toggleSpendForm('${p.id}')">Ausgeben</button>
       <div class="spend-form" id="spend-form-${p.id}">
         <input type="number" step="0.01" min="0" placeholder="€ Betrag" id="spend-amount-${p.id}">
@@ -1125,6 +1263,7 @@ function renderBoard(entries, isLive){
     const card = document.createElement("div");
     const isSoleLeader = i === 0 && p.pts > 0 && !tiedAtTop;
     card.className = "card" + (isSoleLeader ? " rank-1" : "") + (isSoleLeader && newLeaderChanged ? " flash" : "");
+    card.style.borderLeft = `3px solid ${PLAYER_COLORS[p.id] || "var(--line)"}`;
     card.onclick = ()=> openPlayerBreakdown(p.id);
 
     let extraHtml = "";
@@ -1136,7 +1275,7 @@ function renderBoard(entries, isLive){
           : `<span class="rank-arrow down">▼</span>`;
       }
       const streakHtml = p.streak && p.streak.count > 0
-        ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">🔥 ${p.streak.count} Tage${p.streak.atRisk ? " ⚠️" : ""}</div>`
+        ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">${ICONS.flame} ${p.streak.count} Tage${p.streak.atRisk ? " " + ICONS.warn : ""}</div>`
         : "";
       const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
       let compareHtml = "";
@@ -1147,24 +1286,29 @@ function renderBoard(entries, isLive){
         compareHtml = `<div class="p-compare ${dir}">${sign}${delta} vs. Vormonat</div>`;
       }
       card.dataset.arrow = arrowHtml;
-      const todayHtml = `<div class="p-meta">☀️ Heute ${todayPts[p.id]}</div>`;
+      const todayHtml = `<div class="p-meta">${ICONS.sun} Heute ${todayPts[p.id]}</div>`;
       extraHtml = todayHtml + streakHtml + gapHtml + compareHtml;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
-        <div class="p-name">${p.name}</div>
-        <div class="p-score">${p.pts}<span class="unit">Pkt</span></div>
+        <div class="p-name" style="color:${PLAYER_COLORS[p.id] || "var(--text)"}">${p.name}</div>
+        <div class="p-score"><span class="num" id="score-${p.id}">0</span><span class="unit">Pkt</span></div>
         ${extraHtml}
       `;
     } else {
-      const winnerTag = isSoleLeader ? `<div class="p-meta">🏆 Gewinner</div>` : "";
+      const winnerTag = isSoleLeader ? `<div class="p-meta">${ICONS.trophy} Gewinner</div>` : "";
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}</div>
-        <div class="p-name">${p.name}</div>
-        <div class="p-score">${p.pts}<span class="unit">Pkt</span></div>
+        <div class="p-name" style="color:${PLAYER_COLORS[p.id] || "var(--text)"}">${p.name}</div>
+        <div class="p-score"><span class="num" id="score-${p.id}">0</span><span class="unit">Pkt</span></div>
         ${winnerTag}
       `;
     }
     board.appendChild(card);
+
+    const scoreEl = document.getElementById(`score-${p.id}`);
+    const from = displayedScores[p.id] ?? 0;
+    animateNumber(scoreEl, from, p.pts, 600);
+    displayedScores[p.id] = p.pts;
   });
 
   if(isLive){
@@ -1199,7 +1343,6 @@ function renderBoard(entries, isLive){
 function renderChart(entries, viewedDate, isLive){
   const daysInMonth = isLive ? new Date().getDate() : daysInMonthOf(viewedDate.getFullYear(), viewedDate.getMonth());
   const labels = Array.from({length: daysInMonth}, (_, i)=> i+1);
-  const colors = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
 
   const datasets = PLAYERS.map(p=>{
     const dailyTotals = new Array(daysInMonth).fill(0);
@@ -1213,7 +1356,7 @@ function renderChart(entries, viewedDate, isLive){
     return {
       label: p.name,
       data: cumulative,
-      borderColor: colors[p.id] || "#9B9EA6",
+      borderColor: PLAYER_COLORS[p.id] || "#9B9EA6",
       backgroundColor: "transparent",
       tension: 0.25,
       pointRadius: 2,
@@ -1234,6 +1377,9 @@ function renderChart(entries, viewedDate, isLive){
       }
     }
   });
+
+  const skel = document.getElementById("chartSkeleton");
+  if(skel) skel.style.display = "none";
 }
 
 function toggleFeed(){
@@ -1319,6 +1465,7 @@ function applyView(){
   renderCats();
   renderWallet();
   updateTicker();
+  if(isLive) maybeCelebrateMonthWin();
 }
 
 async function loadAndRender(){
