@@ -31,7 +31,7 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;}
   body{
-    background:var(--bg);
+    background:radial-gradient(circle at 50% 0%, #1E2025 0%, var(--bg) 45%, #101114 100%);
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -716,6 +716,8 @@ let currentMonthEntries = []; // nur der ECHTE aktuelle Monat (für Sperr-Logik 
 let viewedMonthKey = null; // welcher Monat wird gerade angezeigt (Archiv oder aktuell)
 let trendChart = null;
 let bigChartInstance = null;
+let categoryChartInstance = null;
+let weekdayChartInstance = null;
 let pieChartInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
 let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
@@ -902,6 +904,19 @@ function hapticFeedback(){
   if(navigator.vibrate) navigator.vibrate(15);
 }
 
+// Zeigt die aktuelle Platzierung der ausgewählten Person als Badge-Zahl auf
+// dem Homescreen-Icon (nur wenn als installierte PWA geöffnet UND vom
+// Betriebssystem unterstützt — aktuell v.a. Android/Chrome). Auf Geräten
+// ohne Unterstützung passiert einfach nichts, kein Fehler.
+function updateAppBadge(ranked){
+  if(!("setAppBadge" in navigator)) return;
+  try{
+    const rank = currentPlayer ? ranked.findIndex(p=> p.id === currentPlayer) + 1 : 0;
+    if(rank > 0) navigator.setAppBadge(rank);
+    else navigator.clearAppBadge();
+  } catch(e){ /* Badge ist ein Nice-to-have, nie kritisch */ }
+}
+
 // Zählt eine Zahl sanft von "from" zu "to" hoch (bzw. runter), statt zu springen.
 function animateNumber(el, from, to, duration){
   if(!el) return;
@@ -1008,6 +1023,8 @@ function closeModal(){
   document.getElementById("modalBox").classList.remove("wide");
   if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance = null; }
   if(bigChartInstance){ bigChartInstance.destroy(); bigChartInstance = null; }
+  if(categoryChartInstance){ categoryChartInstance.destroy(); categoryChartInstance = null; }
+  if(weekdayChartInstance){ weekdayChartInstance.destroy(); weekdayChartInstance = null; }
 }
 
 function closeModalOnOverlay(e){
@@ -1353,6 +1370,7 @@ function renderBoard(entries, isLive){
   if(isLive){
     previousRanks = {};
     ranked.forEach((p, i)=> previousRanks[p.id] = i);
+    updateAppBadge(ranked);
   }
 
   const banner = document.getElementById("stakesBanner");
@@ -1438,6 +1456,46 @@ function toggleFeed(){
   icon.textContent = show ? "▾" : "▸";
 }
 
+// Punkte je Kategorie, aufgeschlüsselt nach Person — zeigt, wer welche
+// Kategorie am meisten trägt.
+function buildCategoryByPlayerChart(entries){
+  const catTotals = {};
+  CATEGORIES.forEach(c=>{ catTotals[c.id] = {}; PLAYERS.forEach(p=> catTotals[c.id][p.id] = 0); });
+  entries.forEach(e=>{
+    if(catTotals[e.category]) catTotals[e.category][e.player_id] += e.points;
+  });
+  const usedCats = CATEGORIES.filter(c=> PLAYERS.some(p=> catTotals[c.id][p.id] > 0));
+  const labels = usedCats.map(c=> c.label.length > 16 ? c.label.slice(0,14) + "…" : c.label);
+  const datasets = PLAYERS.map(p=> ({
+    label: p.name,
+    data: usedCats.map(c=> catTotals[c.id][p.id]),
+    backgroundColor: PLAYER_COLORS[p.id],
+  }));
+  return { labels, datasets, usedCats };
+}
+
+// Punkte je Wochentag (über alle drei zusammen) — zeigt das Wochen-Muster:
+// an welchen Tagen läuft am meisten, an welchen am wenigsten.
+function buildWeekdayChart(entries){
+  const weekdayLabels = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  const totals = new Array(7).fill(0);
+  entries.forEach(e=>{
+    const idx = (new Date(e.created_at).getDay() + 6) % 7;
+    totals[idx] += e.points;
+  });
+  let best = 0, worst = 0;
+  for(let i=1; i<7; i++){
+    if(totals[i] > totals[best]) best = i;
+    if(totals[i] < totals[worst]) worst = i;
+  }
+  const hasData = totals.some(v=> v > 0);
+  return {
+    labels: weekdayLabels,
+    datasets: [{ label: "Punkte", data: totals, backgroundColor: "#4C6FFF" }],
+    insight: hasData ? `${weekdayLabels[best]} läuft's am besten (${totals[best]} Pkt), ${weekdayLabels[worst]} am schwächsten (${totals[worst]} Pkt).` : ""
+  };
+}
+
 // Klick auf den Chart: gleiche Daten, aber größer und übersichtlicher in
 // einem eigenen Fenster. Bewusst nur hier drin — die Startseite bleibt schlank.
 function openChartModal(){
@@ -1449,19 +1507,60 @@ function openChartModal(){
     ? "Punkteverlauf diesen Monat"
     : "Punkteverlauf " + lastViewedDate.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
 
+  const catData = buildCategoryByPlayerChart(lastViewedEntries);
+  const weekData = buildWeekdayChart(lastViewedEntries);
+
   openModal(`
     <h3>${title}</h3>
-    <canvas id="bigChart" style="max-height:340px;"></canvas>
+    <canvas id="bigChart" style="max-height:300px;"></canvas>
+
+    <h3 style="margin-top:24px;">Wer trägt welche Kategorie</h3>
+    <canvas id="categoryChart" style="max-height:260px;"></canvas>
+
+    <h3 style="margin-top:24px;">Punkte nach Wochentag</h3>
+    ${weekData.insight ? `<p class="modal-sub">${weekData.insight}</p>` : ""}
+    <canvas id="weekdayChart" style="max-height:220px;"></canvas>
   `, true);
 
-  const ctx = document.getElementById("bigChart");
-  bigChartInstance = new Chart(ctx, {
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12 } } },
+  };
+
+  bigChartInstance = new Chart(document.getElementById("bigChart"), {
     type: "line",
     data: { labels, datasets: bigDatasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+      }
+    }
+  });
+
+  categoryChartInstance = new Chart(document.getElementById("categoryChart"), {
+    type: "bar",
+    data: { labels: catData.labels, datasets: catData.datasets },
+    options: {
+      ...barOptions,
+      scales: {
+        x: { stacked: true, ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        y: { stacked: true, ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+      }
+    }
+  });
+
+  weekdayChartInstance = new Chart(document.getElementById("weekdayChart"), {
+    type: "bar",
+    data: weekData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
         y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
