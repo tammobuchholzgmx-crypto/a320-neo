@@ -106,6 +106,7 @@
   .modal-box.wide{ max-width:640px; }
   .modal-box h3{ margin:0 0 4px; font-size:16px; font-family:'Archivo'; }
   .modal-sub{ margin:0 0 14px; font-size:12px; color:var(--text-dim); }
+  .wrapped-fact{ font-size:13px; color:var(--text); margin-bottom:8px; line-height:1.5; }
   .modal-close{
     position:absolute;
     top:12px; right:12px;
@@ -556,6 +557,19 @@
     padding:4px 0;
     user-select:none;
   }
+  .feed-day{ margin-bottom:2px; }
+  .feed-day-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
+    padding:8px 0;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-dim);
+    user-select:none;
+  }
+  .feed-day-content{ padding-left:2px; }
   .feed-item{
     display:flex;
     justify-content:space-between;
@@ -724,6 +738,9 @@ let trendChart = null;
 let bigChartInstance = null;
 let categoryChartInstance = null;
 let weekdayChartInstance = null;
+let wrappedCatChartInstance = null;
+let wrappedWeekChartInstance = null;
+let wrappedGapChartInstance = null;
 let pieChartInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
 let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
@@ -740,6 +757,27 @@ function monthKey(d){
 
 function dateKey(d){
   return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+}
+
+// Wie dateKey, aber gepolstert (z.B. "2026-09-05") — dadurch als echtes
+// ISO-Datum zurückparsebar, was wir für die Tages-Gruppierung im Verlauf
+// brauchen (dateKey selbst ist bewusst nur ein Set-Schlüssel, kein Datum).
+function isoDateKey(d){
+  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+}
+
+// Merkt sich, welche Tages-Gruppen im Verlauf aufgeklappt sind (bleibt über
+// Re-Renders hinweg erhalten). Wird beim ersten Rendern mit "heute" befüllt.
+let expandedFeedDays = new Set();
+
+function toggleFeedDay(key){
+  const el = document.getElementById("feedday-"+key);
+  const icon = document.getElementById("feeddayicon-"+key);
+  if(!el) return;
+  const show = el.style.display === "none";
+  el.style.display = show ? "" : "none";
+  if(icon) icon.textContent = show ? "▾" : "▸";
+  if(show) expandedFeedDays.add(key); else expandedFeedDays.delete(key);
 }
 
 function daysInMonthOf(year, monthIndex0){
@@ -1017,6 +1055,139 @@ function maybeCelebrateMonthWin(){
   `);
 }
 
+// Berechnet alle Zahlen fürs Wochen-Wrapped in einem einzigen Durchlauf über
+// die 7 Tage der Woche (vermeidet Datums-Parsing-Stolperfallen komplett,
+// weil wir die Tage selbst hochzählen statt Keys zurückzuparsen).
+function buildWrapped(){
+  const { start } = weekBounds();
+  const end = new Date(start); end.setDate(end.getDate()+7);
+  const weekEntries = allEntries.filter(e=>{ const d = new Date(e.created_at); return d >= start && d < end; });
+
+  const prevStart = new Date(start); prevStart.setDate(prevStart.getDate()-7);
+  const prevWeekEntries = allEntries.filter(e=>{ const d = new Date(e.created_at); return d >= prevStart && d < start; });
+
+  const dayLabels = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  const cumulative = {}; PLAYERS.forEach(p=> cumulative[p.id] = 0);
+  const gapSeries = [];
+  let bestGroupDay = null, bestGroupPts = -1;
+  let biggestJump = { player: null, pts: 0, dayLabel: null };
+
+  for(let i=0; i<7; i++){
+    const dayStart = new Date(start); dayStart.setDate(dayStart.getDate()+i);
+    const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+    const dayEntries = weekEntries.filter(e=>{ const d = new Date(e.created_at); return d >= dayStart && d < dayEnd; });
+
+    let groupDayTotal = 0;
+    PLAYERS.forEach(p=>{
+      const playerDayTotal = dayEntries.filter(e=> e.player_id === p.id).reduce((s,e)=> s+e.points, 0);
+      cumulative[p.id] += playerDayTotal;
+      groupDayTotal += playerDayTotal;
+      if(playerDayTotal > biggestJump.pts) biggestJump = { player: p, pts: playerDayTotal, dayLabel: dayLabels[i] };
+    });
+
+    if(groupDayTotal > bestGroupPts){ bestGroupPts = groupDayTotal; bestGroupDay = dayLabels[i]; }
+
+    const sortedNow = PLAYERS.map(p=> ({ id: p.id, pts: cumulative[p.id] })).sort((a,b)=> b.pts - a.pts);
+    gapSeries.push(sortedNow[0].pts - sortedNow[1].pts);
+  }
+
+  const totals = {}; PLAYERS.forEach(p=> totals[p.id] = cumulative[p.id]);
+  let mvp = null;
+  PLAYERS.forEach(p=>{ if(!mvp || totals[p.id] > totals[mvp.id]) mvp = p; });
+  if(mvp && totals[mvp.id] === 0) mvp = null;
+
+  const thisTotal = weekEntries.reduce((s,e)=> s+e.points, 0);
+  const prevTotal = prevWeekEntries.reduce((s,e)=> s+e.points, 0);
+  const change = prevTotal > 0 ? Math.round(((thisTotal - prevTotal) / prevTotal) * 100) : null;
+
+  return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, dayLabels };
+}
+
+function renderWrapped(w){
+  const rangeEnd = new Date(w.start); rangeEnd.setDate(rangeEnd.getDate()+6);
+  const rangeLabel = `${w.start.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})} – ${rangeEnd.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})}`;
+
+  const catData = buildCategoryByPlayerChart(w.weekEntries);
+  const weekData = buildWeekdayChart(w.weekEntries);
+
+  const facts = [
+    w.mvp ? `${ICONS.trophy} <strong>${w.mvp.name}</strong> ist MVP der Woche mit ${w.totals[w.mvp.id]} Pkt` : "",
+    (w.biggestJump.player && w.biggestJump.pts > 0) ? `${ICONS.trend} Größter Sprung: <strong>${w.biggestJump.player.name}</strong> mit +${w.biggestJump.pts} an einem Tag (${w.biggestJump.dayLabel})` : "",
+    (w.bestGroupDay && w.bestGroupPts > 0) ? `${ICONS.flame} Fleißigster Tag zusammen: ${w.bestGroupDay} mit ${w.bestGroupPts} Pkt` : "",
+    (w.change !== null) ? `${ICONS.trend} ${w.change >= 0 ? "+" : ""}${w.change}% ggü. letzter Woche` : "",
+  ].filter(Boolean).map(f=> `<div class="wrapped-fact">${f}</div>`).join("");
+
+  openModal(`
+    <h3>Wochen-Wrapped</h3>
+    <p class="modal-sub">${rangeLabel}</p>
+    ${facts}
+
+    <h3 style="margin-top:20px;">Punkte pro Kategorie</h3>
+    <canvas id="wrappedCatChart" style="max-height:${Math.max(140, catData.labels.length * 42)}px;"></canvas>
+
+    <h3 style="margin-top:20px;">Punkte pro Wochentag</h3>
+    <canvas id="wrappedWeekChart" style="max-height:170px;"></canvas>
+
+    <h3 style="margin-top:20px;">Vorsprung Platz 1 vor Platz 2</h3>
+    <canvas id="wrappedGapChart" style="max-height:170px;"></canvas>
+  `, true);
+
+  const legend = { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12, font: { size: 12 }, padding: 12 } };
+  const tickColor = { color: "#9B9EA6", font: { size: 11 } };
+  const gridColor = { color: "#2A2D34" };
+
+  wrappedCatChartInstance = new Chart(document.getElementById("wrappedCatChart"), {
+    type: "bar",
+    data: { labels: catData.labels, datasets: catData.datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: "y",
+      plugins: { legend },
+      scales: {
+        x: { stacked: true, ticks: tickColor, grid: gridColor },
+        y: { stacked: true, ticks: { ...tickColor, autoSkip: false }, grid: { display: false } },
+      }
+    }
+  });
+
+  wrappedWeekChartInstance = new Chart(document.getElementById("wrappedWeekChart"), {
+    type: "bar",
+    data: weekData,
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: tickColor, grid: gridColor }, y: { ticks: tickColor, grid: gridColor } }
+    }
+  });
+
+  wrappedGapChartInstance = new Chart(document.getElementById("wrappedGapChart"), {
+    type: "line",
+    data: {
+      labels: w.dayLabels,
+      datasets: [{ label: "Vorsprung (Pkt)", data: w.gapSeries, borderColor: "#E8B93F", backgroundColor: "rgba(232,185,63,0.15)", fill: true, tension: 0.3, pointRadius: 3 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: tickColor, grid: gridColor }, y: { ticks: tickColor, grid: gridColor, beginAtZero: true } }
+    }
+  });
+}
+
+// Sonntags ab 18 Uhr, einmal pro Woche und Gerät (localStorage-Flag).
+function maybeShowWeeklyWrapped(){
+  const now = new Date();
+  if(now.getDay() !== 0 || now.getHours() < 18) return;
+
+  const { start } = weekBounds();
+  const flagKey = "wrapped_" + start.toISOString().slice(0,10);
+  if(localStorage.getItem(flagKey)) return;
+  localStorage.setItem(flagKey, "1");
+
+  const w = buildWrapped();
+  if(w.weekEntries.length === 0) return; // nichts zu zeigen
+  renderWrapped(w);
+}
+
 function openModal(html, wide){
   document.getElementById("modalContent").innerHTML = html;
   document.getElementById("modalBox").classList.toggle("wide", !!wide);
@@ -1031,6 +1202,9 @@ function closeModal(){
   if(bigChartInstance){ bigChartInstance.destroy(); bigChartInstance = null; }
   if(categoryChartInstance){ categoryChartInstance.destroy(); categoryChartInstance = null; }
   if(weekdayChartInstance){ weekdayChartInstance.destroy(); weekdayChartInstance = null; }
+  if(wrappedCatChartInstance){ wrappedCatChartInstance.destroy(); wrappedCatChartInstance = null; }
+  if(wrappedWeekChartInstance){ wrappedWeekChartInstance.destroy(); wrappedWeekChartInstance = null; }
+  if(wrappedGapChartInstance){ wrappedGapChartInstance.destroy(); wrappedGapChartInstance = null; }
 }
 
 function closeModalOnOverlay(e){
@@ -1593,17 +1767,39 @@ function renderFeed(entries){
   const catLabel = {};
   CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
 
-  const sorted = [...entries].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+  const todayKey = isoDateKey(new Date());
+  if(expandedFeedDays.size === 0) expandedFeedDays.add(todayKey); // beim allerersten Mal: heute offen
 
-  feed.innerHTML = sorted.slice(0, 25).map(e=>{
-    const d = new Date(e.created_at);
-    const time = d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}) + " " + d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
-    const catText = catLabel[e.category]||e.category;
-    const cat = CATEGORIES.find(c=> c.id === e.category);
-    const editBtn = cat && cat.type === "numeric" ? `<button class="edit-btn" onclick="openEditModal('${e.id}')" title="Bearbeiten">✎</button>` : "";
-    return `<div class="feed-item">
-      <div><span class="feed-name">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
-      <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button></div>
+  const groups = {};
+  entries.forEach(e=>{
+    const key = isoDateKey(new Date(e.created_at));
+    (groups[key] = groups[key] || []).push(e);
+  });
+  const sortedKeys = Object.keys(groups).sort((a,b)=> new Date(b) - new Date(a));
+
+  feed.innerHTML = sortedKeys.map(key=>{
+    const dayEntries = [...groups[key]].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+    const label = key === todayKey ? "Heute" : new Date(key).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+    const isOpen = expandedFeedDays.has(key);
+
+    const itemsHtml = dayEntries.map(e=>{
+      const d = new Date(e.created_at);
+      const time = d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+      const catText = catLabel[e.category] || e.category;
+      const cat = CATEGORIES.find(c=> c.id === e.category);
+      const editBtn = cat && cat.type === "numeric" ? `<button class="edit-btn" onclick="openEditModal('${e.id}')" title="Bearbeiten">✎</button>` : "";
+      return `<div class="feed-item">
+        <div><span class="feed-name" style="color:${PLAYER_COLORS[e.player_id] || 'var(--text)'}">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
+        <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button></div>
+      </div>`;
+    }).join("");
+
+    return `<div class="feed-day">
+      <div class="feed-day-header" onclick="toggleFeedDay('${key}')">
+        <span>${label}</span>
+        <span id="feeddayicon-${key}">${isOpen ? "▾" : "▸"}</span>
+      </div>
+      <div class="feed-day-content" id="feedday-${key}"${isOpen ? "" : ' style="display:none"'}>${itemsHtml}</div>
     </div>`;
   }).join("");
 }
@@ -1659,7 +1855,10 @@ function applyView(){
   renderCats();
   renderWallet();
   updateTicker();
-  if(isLive) maybeCelebrateMonthWin();
+  if(isLive){
+    maybeCelebrateMonthWin();
+    maybeShowWeeklyWrapped();
+  }
 }
 
 async function loadAndRender(){
