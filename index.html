@@ -690,16 +690,17 @@ const PLAYERS = [
 ];
 
 // Kategorien: "flat" = fester Punktwert pro Klick, "numeric" = Zahl eingeben.
-// "limit": "day" = max. 1x pro Tag, "week-sunday" = nur sonntags, max. 1x pro Woche.
+// "limit": "day" = max. 1x pro Tag, "week-monday" = nur montags, max. 1x pro Woche.
 const CATEGORIES = [
   { id: "bett",               label: "Bett gemacht",                                  type: "flat",    points: 1,  limit: "day" },
   { id: "cardio",              label: "Cardio",                                        type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
   { id: "sport",                label: "Sport",                                        type: "flat",    points: 60 },
   { id: "dehnen",                label: "Dehnen",                                       type: "flat",    points: 20, limit: "day" },
-  { id: "schritte",               label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
-  { id: "lesen",                   label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
-  { id: "screentime_besser",        label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-sunday" },
-  { id: "screentime_ziel",          label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 50, limit: "week-sunday" },
+  { id: "journaln",               label: "Journaln",                                    type: "flat",    points: 20, limit: "day" },
+  { id: "schritte",                label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
+  { id: "lesen",                    label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
+  { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday" },
+  { id: "screentime_ziel",           label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 50, limit: "week-monday" },
 ];
 
 // Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen)
@@ -825,12 +826,12 @@ function weekBounds(){
   return {start, end};
 }
 
-function isSunday(){
-  return new Date().getDay() === 0;
+function isMonday(){
+  return new Date().getDay() === 1;
 }
 
 // Für Kategorien mit "limit": prüft ob heute/diese Woche schon geloggt wurde,
-// bzw. ob heute überhaupt der richtige Tag dafür ist ("week-sunday").
+// bzw. ob heute überhaupt der richtige Tag dafür ist ("week-monday").
 function categoryLockState(cat){
   if(!cat.limit || !currentPlayer) return { locked: false };
 
@@ -843,8 +844,8 @@ function categoryLockState(cat){
     return done ? { locked: true, reason: "heute schon erledigt" } : { locked: false };
   }
 
-  if(cat.limit === "week-sunday"){
-    if(!isSunday()) return { locked: true, reason: "nur sonntags" };
+  if(cat.limit === "week-monday"){
+    if(!isMonday()) return { locked: true, reason: "nur montags" };
     const {start, end} = weekBounds();
     const done = currentMonthEntries.some(e=>
       e.player_id === currentPlayer && e.category === cat.id &&
@@ -1058,8 +1059,8 @@ function maybeCelebrateMonthWin(){
 // Berechnet alle Zahlen fürs Wochen-Wrapped in einem einzigen Durchlauf über
 // die 7 Tage der Woche (vermeidet Datums-Parsing-Stolperfallen komplett,
 // weil wir die Tage selbst hochzählen statt Keys zurückzuparsen).
-function buildWrapped(){
-  const { start } = weekBounds();
+function buildWrapped(weekStart){
+  const start = weekStart;
   const end = new Date(start); end.setDate(end.getDate()+7);
   const weekEntries = allEntries.filter(e=>{ const d = new Date(e.created_at); return d >= start && d < end; });
 
@@ -1173,17 +1174,22 @@ function renderWrapped(w){
   });
 }
 
-// Sonntags ab 18 Uhr, einmal pro Woche und Gerät (localStorage-Flag).
+// Montags (ab 00:00, also "in der Nacht von Sonntag auf Montag"), einmal pro
+// Woche und Gerät (localStorage-Flag). Am Montag ist die aktuelle weekBounds()
+// schon die NEUE Woche — die abgeschlossene Woche liegt also 7 Tage davor.
 function maybeShowWeeklyWrapped(){
   const now = new Date();
-  if(now.getDay() !== 0 || now.getHours() < 18) return;
+  if(now.getDay() !== 1) return;
 
-  const { start } = weekBounds();
-  const flagKey = "wrapped_" + start.toISOString().slice(0,10);
+  const { start: newWeekStart } = weekBounds();
+  const finishedWeekStart = new Date(newWeekStart);
+  finishedWeekStart.setDate(finishedWeekStart.getDate() - 7);
+
+  const flagKey = "wrapped_" + finishedWeekStart.toISOString().slice(0,10);
   if(localStorage.getItem(flagKey)) return;
   localStorage.setItem(flagKey, "1");
 
-  const w = buildWrapped();
+  const w = buildWrapped(finishedWeekStart);
   if(w.weekEntries.length === 0) return; // nichts zu zeigen
   renderWrapped(w);
 }
@@ -1467,14 +1473,19 @@ function dayStartRanking(entries){
   return { ranks, allZero };
 }
 
-function renderBoard(entries, isLive){
+function renderBoard(entries, isLive, viewedDate){
   const totals = {};
   PLAYERS.forEach(p=> totals[p.id] = 0);
   entries.forEach(e=> totals[e.player_id] = (totals[e.player_id]||0) + e.points);
 
+  // Ø Punkte/Tag: bei der laufenden Ansicht über die bisher vergangenen Tage
+  // des Monats, im Archiv über den kompletten (abgeschlossenen) Monat.
+  const daysForAvg = isLive ? new Date().getDate() : daysInMonthOf(viewedDate.getFullYear(), viewedDate.getMonth());
+
   const ranked = PLAYERS.map(p=>({
     ...p,
     pts: totals[p.id] || 0,
+    avg: daysForAvg > 0 ? Math.round((totals[p.id] || 0) / daysForAvg) : 0,
     streak: isLive ? computeStreak(p.id, allEntries) : null,
   })).sort((a,b)=> b.pts - a.pts);
 
@@ -1523,7 +1534,8 @@ function renderBoard(entries, isLive){
       }
       card.dataset.arrow = arrowHtml;
       const todayHtml = `<div class="p-meta">${ICONS.sun} Heute ${todayPts[p.id]}</div>`;
-      extraHtml = todayHtml + streakHtml + gapHtml + compareHtml;
+      const avgHtml = `<div class="p-meta">Ø ${p.avg} Pkt/Tag</div>`;
+      extraHtml = todayHtml + avgHtml + streakHtml + gapHtml + compareHtml;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
         <div class="p-name" style="color:${PLAYER_COLORS[p.id] || "var(--text)"}">${p.name}</div>
@@ -1532,11 +1544,13 @@ function renderBoard(entries, isLive){
       `;
     } else {
       const winnerTag = isSoleLeader ? `<div class="p-meta">${ICONS.trophy} Gewinner</div>` : "";
+      const avgHtml = `<div class="p-meta">Ø ${p.avg} Pkt/Tag</div>`;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}</div>
         <div class="p-name" style="color:${PLAYER_COLORS[p.id] || "var(--text)"}">${p.name}</div>
         <div class="p-score"><span class="num" id="score-${p.id}">0</span><span class="unit">Pkt</span></div>
         ${winnerTag}
+        ${avgHtml}
       `;
     }
     board.appendChild(card);
@@ -1849,7 +1863,7 @@ function applyView(){
   document.getElementById("logSection").style.display = isLive ? "" : "none";
   document.getElementById("archiveNotice").style.display = isLive ? "none" : "flex";
 
-  renderBoard(viewedEntries, isLive);
+  renderBoard(viewedEntries, isLive, viewedDate);
   renderChart(viewedEntries, viewedDate, isLive);
   renderFeed(viewedEntries);
   renderCats();
