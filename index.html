@@ -706,6 +706,10 @@ const CATEGORIES = [
 // Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen)
 const MONTHLY_PRIZE_EUR = 15;
 
+// Start des Spiels — der Ø-Punkte-Wert zählt nie Tage davor mit, auch wenn
+// der Monat schon vorher angefangen hätte.
+const START_DATE = new Date(2026, 8, 18); // 18.09.2026 (Monat ist 0-indexiert: 8 = September)
+
 // Feste Akzentfarbe je Spieler — an einer Stelle definiert, überall verwendet
 // (Chart, Karten, Badges, Namens-Auswahl), damit es konsistent bleibt.
 const PLAYER_COLORS = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
@@ -783,6 +787,21 @@ function toggleFeedDay(key){
 
 function daysInMonthOf(year, monthIndex0){
   return new Date(year, monthIndex0+1, 0).getDate();
+}
+
+// Anzahl Tage für den Ø-Punkte-Wert: ab dem späteren von "Monatsanfang" und
+// START_DATE, bis heute (laufender Monat) bzw. bis Monatsende (Archiv).
+function daysForAverage(viewedDate, isLive){
+  const monthStart = new Date(viewedDate.getFullYear(), viewedDate.getMonth(), 1);
+  const effectiveStart = monthStart < START_DATE ? START_DATE : monthStart;
+  const periodEnd = isLive ? new Date() : new Date(viewedDate.getFullYear(), viewedDate.getMonth()+1, 0);
+
+  const startMidnight = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), effectiveStart.getDate());
+  const endMidnight = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), periodEnd.getDate());
+  if(endMidnight < startMidnight) return 1; // Monat komplett vor START_DATE — sollte nicht vorkommen, aber sicher ist sicher
+
+  const days = Math.round((endMidnight - startMidnight) / 86400000) + 1;
+  return Math.max(days, 1);
 }
 
 function formatEuro(v){
@@ -1478,9 +1497,8 @@ function renderBoard(entries, isLive, viewedDate){
   PLAYERS.forEach(p=> totals[p.id] = 0);
   entries.forEach(e=> totals[e.player_id] = (totals[e.player_id]||0) + e.points);
 
-  // Ø Punkte/Tag: bei der laufenden Ansicht über die bisher vergangenen Tage
-  // des Monats, im Archiv über den kompletten (abgeschlossenen) Monat.
-  const daysForAvg = isLive ? new Date().getDate() : daysInMonthOf(viewedDate.getFullYear(), viewedDate.getMonth());
+  // Ø Punkte/Tag: nie Tage vor START_DATE mitzählen (siehe daysForAverage).
+  const daysForAvg = daysForAverage(viewedDate, isLive);
 
   const ranked = PLAYERS.map(p=>({
     ...p,
