@@ -183,8 +183,20 @@
   .month-nav{
     display:flex;
     justify-content:flex-end;
+    gap:8px;
     margin-bottom:18px;
   }
+  .wrapped-btn{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:13px;
+    font-family:'Inter';
+    cursor:pointer;
+  }
+  .wrapped-btn:active{ border-color:var(--blue); }
   .month-nav select{
     background:var(--panel);
     border:1px solid var(--line);
@@ -619,6 +631,7 @@
   <div class="ticker" id="ticker"></div>
 
   <div class="month-nav">
+    <button class="wrapped-btn" onclick="openWrappedManually()">Wochen-Wrapped</button>
     <select id="monthSelect" onchange="onMonthSelect()"></select>
   </div>
 
@@ -1193,23 +1206,40 @@ function renderWrapped(w){
   });
 }
 
-// Montags (ab 00:00, also "in der Nacht von Sonntag auf Montag"), einmal pro
-// Woche und Gerät (localStorage-Flag). Am Montag ist die aktuelle weekBounds()
-// schon die NEUE Woche — die abgeschlossene Woche liegt also 7 Tage davor.
+// Die zuletzt abgeschlossene Woche (Montag 00:00 bis Sonntag 23:59). Ab
+// Montag 00:00 ist weekBounds() schon die NEUE Woche — die fertige liegt
+// also genau 7 Tage davor.
+function lastFinishedWeekStart(){
+  const { start } = weekBounds();
+  const finished = new Date(start);
+  finished.setDate(finished.getDate() - 7);
+  return finished;
+}
+
+// Wird beim ersten Öffnen NACH Montag 00:00 einmal pro Woche und Gerät gezeigt
+// (nicht nur am Montag selbst — wer erst dienstags reinschaut, verpasst es
+// sonst). Das "schon gezeigt"-Flag wird erst gesetzt, wenn es wirklich
+// angezeigt wurde, und hat einen eigenen Schlüssel (wrapped2_), damit alte
+// Flags aus früheren Versionen es nicht blockieren.
 function maybeShowWeeklyWrapped(){
-  const now = new Date();
-  if(now.getDay() !== 1) return;
-
-  const { start: newWeekStart } = weekBounds();
-  const finishedWeekStart = new Date(newWeekStart);
-  finishedWeekStart.setDate(finishedWeekStart.getDate() - 7);
-
-  const flagKey = "wrapped_" + finishedWeekStart.toISOString().slice(0,10);
+  const finishedWeekStart = lastFinishedWeekStart();
+  const flagKey = "wrapped2_" + isoDateKey(finishedWeekStart);
   if(localStorage.getItem(flagKey)) return;
-  localStorage.setItem(flagKey, "1");
 
   const w = buildWrapped(finishedWeekStart);
-  if(w.weekEntries.length === 0) return; // nichts zu zeigen
+  if(w.weekEntries.length === 0) return; // nichts zu zeigen — Flag bleibt frei, falls Daten noch nachladen
+
+  localStorage.setItem(flagKey, "1");
+  renderWrapped(w);
+}
+
+// Manuell aufrufbar (Button), unabhängig davon, ob es schon automatisch kam.
+function openWrappedManually(){
+  const w = buildWrapped(lastFinishedWeekStart());
+  if(w.weekEntries.length === 0){
+    openModal(`<h3>Wochen-Wrapped</h3><p class="modal-sub">Für die letzte Woche gibt es noch keine Einträge.</p>`);
+    return;
+  }
   renderWrapped(w);
 }
 
