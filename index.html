@@ -703,7 +703,8 @@ const PLAYERS = [
 ];
 
 // Kategorien: "flat" = fester Punktwert pro Klick, "numeric" = Zahl eingeben.
-// "limit": "day" = max. 1x pro Tag, "week-monday" = nur montags, max. 1x pro Woche.
+// "limit": "day" = pro Tag begrenzt, "week-monday" = nur montags, pro Woche begrenzt.
+// "maxPerPeriod": wie oft pro Tag/Woche erlaubt ist (Standard: 1, Infinity = unbegrenzt).
 const CATEGORIES = [
   { id: "bett",               label: "Bett gemacht",                                  type: "flat",    points: 1,  limit: "day" },
   { id: "cardio",              label: "Cardio",                                        type: "numeric", unitLabel: "Minuten", unitSize: 10, pointsPerUnit: 10 },
@@ -712,7 +713,7 @@ const CATEGORIES = [
   { id: "journaln",               label: "Journaln",                                    type: "flat",    points: 20, limit: "day" },
   { id: "schritte",                label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
   { id: "lesen",                    label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
-  { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday" },
+  { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity },
   { id: "screentime_ziel",           label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 50, limit: "week-monday" },
 ];
 
@@ -866,24 +867,26 @@ function isMonday(){
 // bzw. ob heute überhaupt der richtige Tag dafür ist ("week-monday").
 function categoryLockState(cat){
   if(!cat.limit || !currentPlayer) return { locked: false };
+  const max = cat.maxPerPeriod || 1;
+
+  const countIn = (start, end)=> currentMonthEntries.filter(e=>
+    e.player_id === currentPlayer && e.category === cat.id &&
+    new Date(e.created_at) >= start && new Date(e.created_at) < end
+  ).length;
 
   if(cat.limit === "day"){
     const {start, end} = dayBounds();
-    const done = currentMonthEntries.some(e=>
-      e.player_id === currentPlayer && e.category === cat.id &&
-      new Date(e.created_at) >= start && new Date(e.created_at) < end
-    );
-    return done ? { locked: true, reason: "heute schon erledigt" } : { locked: false };
+    const count = countIn(start, end);
+    if(count >= max) return { locked: true, reason: max > 1 ? `heute schon ${max}x erledigt` : "heute schon erledigt", count, max };
+    return { locked: false, count, max };
   }
 
   if(cat.limit === "week-monday"){
-    if(!isMonday()) return { locked: true, reason: "nur montags" };
+    if(!isMonday()) return { locked: true, reason: "nur montags", count: 0, max };
     const {start, end} = weekBounds();
-    const done = currentMonthEntries.some(e=>
-      e.player_id === currentPlayer && e.category === cat.id &&
-      new Date(e.created_at) >= start && new Date(e.created_at) < end
-    );
-    return done ? { locked: true, reason: "diese Woche schon erledigt" } : { locked: false };
+    const count = countIn(start, end);
+    if(count >= max) return { locked: true, reason: max > 1 ? `diese Woche schon ${max}x erledigt` : "diese Woche schon erledigt", count, max };
+    return { locked: false, count, max };
   }
 
   return { locked: false };
@@ -1372,7 +1375,10 @@ function renderCats(){
       const btn = document.createElement("button");
       btn.className = "cat-btn" + (lock.locked ? " done" : "");
       btn.disabled = lock.locked;
-      btn.innerHTML = `<span>${c.label}${lock.locked ? " · " + lock.reason : ""}</span><span class="cat-pts">+${c.points}</span>`;
+      let progress = "";
+      if(!lock.locked && lock.max === Infinity){ progress = lock.count > 0 ? ` · ${lock.count}x` : ""; }
+      else if(!lock.locked && lock.max > 1){ progress = ` · ${lock.count}/${lock.max}`; }
+      btn.innerHTML = `<span>${c.label}${lock.locked ? " · " + lock.reason : progress}</span><span class="cat-pts">+${c.points}</span>`;
       btn.onclick = ()=> logFlat(c);
       el.appendChild(btn);
     } else {
@@ -1411,17 +1417,25 @@ async function logNumeric(catId){
   input.value = "";
 }
 
+let submitting = false; // verhindert, dass ein schneller Doppel-Tipp zwei Einträge erzeugt
+
 async function insertEntry(categoryId, points, toastMsg, rawValue){
-  const { error } = await sb.from("entries").insert({
-    player_id: currentPlayer,
-    category: categoryId,
-    points: points,
-    raw_value: rawValue ?? null
-  });
-  if(error){ alert("Fehler beim Speichern: " + error.message); return; }
-  hapticFeedback();
-  showToast(toastMsg);
-  loadAndRender();
+  if(submitting) return;
+  submitting = true;
+  try {
+    const { error } = await sb.from("entries").insert({
+      player_id: currentPlayer,
+      category: categoryId,
+      points: points,
+      raw_value: rawValue ?? null
+    });
+    if(error){ alert("Fehler beim Speichern: " + error.message); return; }
+    hapticFeedback();
+    showToast(toastMsg);
+    await loadAndRender(); // erst neu laden, damit Sperren/Zähler sofort stimmen
+  } finally {
+    submitting = false;
+  }
 }
 
 async function deleteEntry(id){
