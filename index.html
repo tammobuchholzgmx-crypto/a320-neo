@@ -1586,7 +1586,7 @@ function renderBoard(entries, isLive, viewedDate){
       const streakHtml = p.streak && p.streak.count > 0
         ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">${ICONS.flame} ${p.streak.count} Tage${p.streak.atRisk ? " " + ICONS.warn : ""}</div>`
         : "";
-      const gapTop1 = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
+      const gapTop1 = i === 1 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
       const gapTop2 = i === 2 && ranked[1].pts > p.pts ? `<div class="p-gap">${ranked[1].pts - p.pts} bis Platz 2</div>` : "";
       const gapHtml = gapTop1 + gapTop2;
       let compareHtml = "";
