@@ -232,26 +232,11 @@
   }
 
   /* Player picker */
-  .who-row{
-    display:flex;
-    gap:8px;
-    margin-bottom:20px;
-    align-items:stretch;
-  }
   #who{
     display:flex;
     gap:8px;
-    flex:1;
+    margin-bottom:20px;
   }
-  .notif-btn{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:8px;
-    font-size:16px;
-    padding:0 14px;
-    cursor:pointer;
-  }
-  .notif-btn.active{ border-color:var(--gold); }
   #who button{
     flex:1;
     background:var(--panel);
@@ -442,10 +427,6 @@
     text-overflow:ellipsis;
   }
   .wallet-bal.neg{color:var(--red);}
-  .wallet-btn-row{
-    display:flex;
-    gap:6px;
-  }
   .wallet-spend-btn{
     background:none;
     border:1px solid var(--line);
@@ -455,18 +436,6 @@
     font-size:13px;
     cursor:pointer;
     width:100%;
-    flex:1;
-  }
-  .wallet-pay-btn{
-    background:none;
-    border:1px solid var(--green);
-    color:var(--green);
-    border-radius:6px;
-    padding:9px 10px;
-    font-size:13px;
-    font-weight:600;
-    cursor:pointer;
-    flex:1;
   }
   .spend-form{
     display:none;
@@ -671,10 +640,7 @@
     <button onclick="backToLive()">Zurück zu heute</button>
   </div>
 
-  <div class="who-row">
-    <div id="who"></div>
-    <button class="notif-btn" id="notifBtn" onclick="toggleNotifications()" title="Benachrichtigungen">🔔</button>
-  </div>
+  <div id="who"></div>
 
   <div class="board" id="board">
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
@@ -776,10 +742,6 @@ const ICONS = {
 // Fest eingetragene Supabase-Zugangsdaten (Publishable Key ist bewusst öffentlich nutzbar)
 const SUPABASE_URL = "https://dswuwwmkrjwhyzbnyvvi.supabase.co";
 const SUPABASE_KEY = "sb_publishable_tGL-gO7-zsiQw5jwyzeUEA_ef_Cduao";
-
-// Öffentlicher Schlüssel für Push-Benachrichtigungen (bewusst öffentlich —
-// der private Gegenpart liegt NUR als Supabase-Edge-Function-Secret, nie im Code).
-const VAPID_PUBLIC_KEY = "BOV-5qiU1QJhXw0QjMJZDLQKxl36tmCSUzTBGXR8lzmz45L9Qoy8RN-stH903lfyH58SfTmPVK__y9YE7d5MsSQ";
 
 /* ============================================================
    Ab hier nichts mehr anfassen
@@ -944,11 +906,8 @@ function monthWinner(monthEntries){
     : { winner: null, tie: true, totals };
 }
 
-// Guthaben je Spieler: +15€ für jeden abgeschlossenen Monat, den er gewonnen
-// hat, -5€ für Platz 2 und -10€ für Platz 3 in diesem Monat (ergibt zusammen
-// die 15€ des Siegers), minus alles, was er/sie über "Ausgeben" bereits
-// abgezogen hat. Bei Gleichstand an der Spitze wird der Monat nicht verbucht
-// (niemand bekommt/zahlt automatisch) — siehe monthWinner().
+// Guthaben je Spieler: +15€ für jeden abgeschlossenen Monat, den er gewonnen hat,
+// minus alles, was er/sie über "Ausgeben" bereits abgezogen hat.
 function computeWallets(){
   const balances = {};
   PLAYERS.forEach(p=> balances[p.id] = 0);
@@ -957,13 +916,8 @@ function computeWallets(){
   monthsSeen.forEach(mk=>{
     if(mk === nowKey) return; // laufender Monat ist noch nicht abgeschlossen
     const monthEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === mk);
-    const { winner, totals } = monthWinner(monthEntries);
-    if(!winner) return; // Gleichstand an der Spitze — kein Geld fließt
-
-    const ranked = PLAYERS.map(p=> ({ id: p.id, pts: totals[p.id] || 0 })).sort((a,b)=> b.pts - a.pts);
-    balances[winner.id] += MONTHLY_PRIZE_EUR;
-    if(ranked[1]) balances[ranked[1].id] -= 5;
-    if(ranked[2]) balances[ranked[2].id] -= 10;
+    const { winner } = monthWinner(monthEntries);
+    if(winner) balances[winner.id] += MONTHLY_PRIZE_EUR;
   });
   allSpends.forEach(s=>{
     if(balances[s.player_id] !== undefined) balances[s.player_id] -= Number(s.amount);
@@ -1514,30 +1468,6 @@ async function spendMoney(playerId){
   loadAndRender();
 }
 
-function togglePayForm(playerId){
-  const form = document.getElementById("pay-form-"+playerId);
-  if(!form) return;
-  form.style.display = form.style.display === "flex" ? "none" : "flex";
-}
-
-// Negativ gespeicherter Betrag = Zahlung an den Gewinner, reduziert die
-// Schulden statt sie zu erhöhen (computeWallets zieht den Betrag ab, ein
-// negativer Betrag wirkt sich dadurch als Plus auf den Kontostand aus).
-async function payDebt(playerId){
-  const amountInput = document.getElementById("pay-amount-"+playerId);
-  const amount = parseFloat((amountInput.value || "").replace(",", "."));
-  if(!amount || amount <= 0){ alert("Trag einen gültigen Betrag ein."); return; }
-  const { error } = await sb.from("wallet_spends").insert({
-    player_id: playerId,
-    amount: -amount,
-    note: "Bezahlt"
-  });
-  if(error){ alert("Fehler beim Speichern: " + error.message); return; }
-  document.getElementById("pay-form-"+playerId).style.display = "none";
-  showToast("Bezahlt: " + formatEuro(amount));
-  loadAndRender();
-}
-
 async function deleteSpend(id){
   if(!confirm("Diese Ausgabe wirklich löschen?")) return;
   const { error } = await sb.from("wallet_spends").delete().eq("id", id);
@@ -1553,27 +1483,16 @@ function renderWallet(){
   const cardsEl = document.getElementById("walletCards");
   cardsEl.innerHTML = PLAYERS.map(p=>{
     const bal = balances[p.id] || 0;
-    const owes = bal < 0;
-    const payBtn = owes ? `<button class="wallet-pay-btn" onclick="togglePayForm('${p.id}')">Bezahlt</button>` : "";
-    const payForm = owes ? `
-      <div class="spend-form" id="pay-form-${p.id}">
-        <input type="number" step="0.01" min="0" placeholder="€ Betrag" id="pay-amount-${p.id}" value="${Math.abs(bal).toFixed(2)}">
-        <button onclick="payDebt('${p.id}')">Bestätigen</button>
-      </div>` : "";
     return `<div class="wallet-card" style="border-left:3px solid ${PLAYER_COLORS[p.id]}">
       <div class="wallet-name">${p.name}</div>
-      <div class="wallet-bal${owes ? " neg" : ""}">${formatEuro(bal)}</div>
+      <div class="wallet-bal${bal < 0 ? " neg" : ""}">${formatEuro(bal)}</div>
       <div class="wallet-badges"><div>${ICONS.medal} ${wins[p.id]} Sieg${wins[p.id] === 1 ? "" : "e"}</div><div>${ICONS.trend} Bester Tag ${bestDay[p.id]}</div></div>
-      <div class="wallet-btn-row">
-        <button class="wallet-spend-btn" onclick="toggleSpendForm('${p.id}')">Ausgeben</button>
-        ${payBtn}
-      </div>
+      <button class="wallet-spend-btn" onclick="toggleSpendForm('${p.id}')">Ausgeben</button>
       <div class="spend-form" id="spend-form-${p.id}">
         <input type="number" step="0.01" min="0" placeholder="€ Betrag" id="spend-amount-${p.id}">
         <input type="text" placeholder="Wofür? (optional)" id="spend-note-${p.id}">
         <button onclick="spendMoney('${p.id}')">Bestätigen</button>
       </div>
-      ${payForm}
     </div>`;
   }).join("");
 
@@ -1586,13 +1505,9 @@ function renderWallet(){
   logEl.innerHTML = sorted.slice(0, 15).map(s=>{
     const d = new Date(s.created_at);
     const time = d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
-    const amount = Number(s.amount);
-    const isPayment = amount < 0; // negativ gespeichert = Schulden beglichen, nicht ausgegeben
-    const label = isPayment ? (s.note || "Bezahlt") : (s.note || "Ausgegeben");
-    const sign = isPayment ? "+" : "-";
     return `<div class="feed-item">
-      <div><span class="feed-name">${byId[s.player_id]||'?'}</span> <span class="feed-cat">${label}</span></div>
-      <div><span class="feed-pts${isPayment ? "" : " neg"}">${sign}${formatEuro(Math.abs(amount)).replace('-','')}</span><span class="feed-time">${time}</span><button class="del-btn" onclick="deleteSpend('${s.id}')" title="Löschen">×</button></div>
+      <div><span class="feed-name">${byId[s.player_id]||'?'}</span> <span class="feed-cat">${s.note || 'Ausgegeben'}</span></div>
+      <div><span class="feed-pts neg">-${formatEuro(s.amount).replace('-','')}</span><span class="feed-time">${time}</span><button class="del-btn" onclick="deleteSpend('${s.id}')" title="Löschen">×</button></div>
     </div>`;
   }).join("");
 }
@@ -1671,9 +1586,7 @@ function renderBoard(entries, isLive, viewedDate){
       const streakHtml = p.streak && p.streak.count > 0
         ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">${ICONS.flame} ${p.streak.count} Tage${p.streak.atRisk ? " " + ICONS.warn : ""}</div>`
         : "";
-      const gapTop1 = i === 1 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
-      const gapTop2 = i === 2 && ranked[1].pts > p.pts ? `<div class="p-gap">${ranked[1].pts - p.pts} bis Platz 2</div>` : "";
-      const gapHtml = gapTop1 + gapTop2;
+      const gapHtml = i > 0 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
       let compareHtml = "";
       if(prevMonth && prevMonth.hasData){
         const delta = p.pts - prevMonth.totals[p.id];
@@ -2044,71 +1957,6 @@ function subscribeRealtime(){
     .subscribe();
 }
 
-function urlBase64ToUint8Array(base64String){
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for(let i=0; i<rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
-}
-
-async function updateNotifButton(){
-  const btn = document.getElementById("notifBtn");
-  if(!btn) return;
-  if(!("serviceWorker" in navigator) || !("PushManager" in window)){
-    btn.style.display = "none"; // nicht unterstützt (z.B. iPhone-Browser ohne Homescreen-Installation)
-    return;
-  }
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    btn.classList.toggle("active", !!sub);
-  } catch(e) { /* Anzeige ist nie kritisch */ }
-}
-
-async function toggleNotifications(){
-  if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
-  if(!("serviceWorker" in navigator) || !("PushManager" in window)){
-    alert("Push-Benachrichtigungen werden hier nicht unterstützt. Auf dem iPhone: App erst zum Home-Bildschirm hinzufügen und von dort öffnen.");
-    return;
-  }
-
-  const reg = await navigator.serviceWorker.ready;
-  const existing = await reg.pushManager.getSubscription();
-
-  if(existing){
-    await sb.from("push_subscriptions").delete().eq("endpoint", existing.endpoint);
-    await existing.unsubscribe();
-    showToast("Benachrichtigungen deaktiviert");
-    updateNotifButton();
-    return;
-  }
-
-  const permission = await Notification.requestPermission();
-  if(permission !== "granted"){
-    alert("Ohne Erlaubnis kann ich dir keine Benachrichtigungen schicken.");
-    return;
-  }
-
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-  });
-  const subJson = sub.toJSON();
-
-  const { error } = await sb.from("push_subscriptions").upsert({
-    player_id: currentPlayer,
-    endpoint: subJson.endpoint,
-    p256dh: subJson.keys.p256dh,
-    auth: subJson.keys.auth,
-  }, { onConflict: "endpoint" });
-
-  if(error){ alert("Fehler beim Speichern: " + error.message); return; }
-  showToast("Benachrichtigungen aktiviert 🔔");
-  updateNotifButton();
-}
-
 async function init(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   viewedMonthKey = monthKey(new Date());
@@ -2132,13 +1980,8 @@ init();
 
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
-    navigator.serviceWorker.register("sw.js")
-      .then(()=> updateNotifButton())
-      .catch(err=> console.warn("SW-Registrierung fehlgeschlagen:", err));
+    navigator.serviceWorker.register("sw.js").catch(err=> console.warn("SW-Registrierung fehlgeschlagen:", err));
   });
-} else {
-  const btn = document.getElementById("notifBtn");
-  if(btn) btn.style.display = "none";
 }
 </script>
 </body>
