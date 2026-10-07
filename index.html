@@ -92,6 +92,65 @@
     z-index:100;
   }
   .modal-overlay.show{ display:flex; }
+
+  /* Lock screen */
+  .lock-overlay{
+    position:fixed;
+    inset:0;
+    background:var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:300;
+  }
+  .lock-box{
+    text-align:center;
+    width:100%;
+    max-width:280px;
+  }
+  .lock-icon{ font-size:32px; margin-bottom:8px; }
+  .lock-title{
+    font-family:'Archivo',sans-serif;
+    font-weight:800;
+    font-size:22px;
+    margin:0 0 4px;
+  }
+  .lock-sub{
+    font-size:13px;
+    color:var(--text-dim);
+    margin:0 0 20px;
+  }
+  .lock-box input{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:8px;
+    padding:14px;
+    font-size:22px;
+    text-align:center;
+    letter-spacing:8px;
+    font-family:'Inter';
+    margin-bottom:12px;
+  }
+  .lock-box input:focus{ outline:none; border-color:var(--blue); }
+  .lock-box button{
+    width:100%;
+    background:var(--blue);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:13px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .lock-error{
+    color:var(--red);
+    font-size:12px;
+    margin-top:12px;
+  }
   .modal-box{
     background:var(--panel);
     border:1px solid var(--line);
@@ -647,7 +706,18 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <h1 class="lock-title">Scoreboard</h1>
+    <p class="lock-sub">PIN eingeben</p>
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="lockInput" autocomplete="off">
+    <button onclick="tryUnlock()">Entsperren</button>
+    <p class="lock-error" id="lockError" style="display:none">Falsche PIN.</p>
+  </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none">
 
   <header>
     <h1>Scoreboard</h1>
@@ -777,6 +847,48 @@ const VAPID_PUBLIC_KEY = "BOV-5qiU1QJhXw0QjMJZDLQKxl36tmCSUzTBGXR8lzmz45L9Qoy8RN
 /* ============================================================
    Ab hier nichts mehr anfassen
    ============================================================ */
+
+// Kein echter Schutz gegen jemanden, der gezielt sucht (eine reine Web-Seite
+// kann ihren eigenen Code nie wirklich geheim halten) — aber verhindert, dass
+// jemand zufällig über den Link stolpert und sofort alles sieht. Es wird nur
+// der SHA-256-Hash der PIN gespeichert, nicht die PIN selbst im Klartext.
+const PIN_HASH = "76ced5b53829bb4ca8ab376be09683e92512ef0aab8fb68fcee5121596f94143";
+const UNLOCK_KEY = "sb_unlocked_v1";
+
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=> b.toString(16).padStart(2,"0")).join("");
+}
+
+function showApp(){
+  document.getElementById("lockOverlay").style.display = "none";
+  document.getElementById("appWrap").style.display = "";
+  init();
+}
+
+async function tryUnlock(){
+  const input = document.getElementById("lockInput");
+  const hash = await sha256Hex(input.value.trim());
+  if(hash === PIN_HASH){
+    localStorage.setItem(UNLOCK_KEY, "1");
+    showApp();
+  } else {
+    document.getElementById("lockError").style.display = "block";
+    input.value = "";
+    input.focus();
+  }
+}
+
+function checkAccess(){
+  if(localStorage.getItem(UNLOCK_KEY) === "1"){
+    showApp();
+  } else {
+    document.getElementById("lockInput").addEventListener("keydown", (e)=>{
+      if(e.key === "Enter") tryUnlock();
+    });
+    document.getElementById("lockInput").focus();
+  }
+}
 
 let sb = null;
 let currentPlayer = localStorage.getItem("sb_current_player") || null;
@@ -2121,7 +2233,7 @@ async function init(){
   setInterval(updateTicker, 60000);
 }
 
-init();
+checkAccess();
 
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
