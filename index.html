@@ -561,6 +561,13 @@
     font-weight:600;
     margin:0 0 12px;
   }
+  .diversity-hint{
+    font-size:12px;
+    color:var(--text-dim);
+    margin:-4px 0 12px;
+    line-height:1.4;
+  }
+  .diversity-hint strong{ color:var(--gold); font-weight:600; }
   .cats{
     display:grid;
     grid-template-columns:minmax(0, 1fr);
@@ -760,6 +767,7 @@
 
   <section class="log" id="logSection">
     <h2>Punkte eintragen</h2>
+    <div class="diversity-hint" id="diversityHint"></div>
     <div class="cats" id="cats"></div>
   </section>
 
@@ -813,6 +821,23 @@ const CATEGORIES = [
   { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity },
   { id: "screentime_ziel",           label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 50, limit: "week-monday" },
 ];
+
+// Vielfalt-Bonus: pro Tag erhöht jede verschiedene erledigte Kategorie einen
+// Multiplikator um 0,1. Die Tagespunkte (ohne den Bonus selbst) werden damit
+// multipliziert und als Extra-Punkte obendrauf gebucht. Beispiel: 100 Punkte
+// aus 6 Kategorien -> Faktor 0,6 -> +60 Punkte.
+// Der Bonus wird als automatisch verwalteter Eintrag in "entries" gespeichert
+// (damit Board, Charts, Guthaben usw. ihn ohne Sonderfälle mitzählen), taucht
+// aber nicht als eintragbare Kategorie auf.
+const BONUS_CATEGORY_ID = "bonus_vielfalt";
+const BONUS_CATEGORY_LABEL = "Vielfalt-Bonus";
+const BONUS_PER_CATEGORY = 0.1;
+// Erst ab diesem Tag aktiv, damit bereits abgeschlossene Tage/Monate (und damit
+// Siege und Guthaben) nicht nachträglich verändert werden.
+const BONUS_START_DATE = new Date(2026, 9, 9); // 09.10.2026
+
+// Für Auswertungen/Anzeige: alle echten Kategorien plus der Bonus.
+const CHART_CATEGORIES = [...CATEGORIES, { id: BONUS_CATEGORY_ID, label: BONUS_CATEGORY_LABEL, type: "flat" }];
 
 // Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen)
 const MONTHLY_PRIZE_EUR = 15;
@@ -1176,9 +1201,10 @@ function relativeTime(date){
 function updateTicker(){
   const el = document.getElementById("ticker");
   if(!el) return;
-  if(allEntries.length === 0){ el.textContent = ""; lastTickerEntryId = null; return; }
+  const tickerEntries = allEntries.filter(e=> e.category !== BONUS_CATEGORY_ID);
+  if(tickerEntries.length === 0){ el.textContent = ""; lastTickerEntryId = null; return; }
 
-  const latest = [...allEntries].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))[0];
+  const latest = [...tickerEntries].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))[0];
   const byId = {}; PLAYERS.forEach(p=> byId[p.id] = p.name);
   const catLabel = {}; CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
 
@@ -1427,10 +1453,10 @@ function openPlayerBreakdown(playerId){
   const entries = lastViewedEntries.filter(e=> e.player_id === playerId);
 
   const totalsByCategory = {};
-  CATEGORIES.forEach(c=> totalsByCategory[c.id] = 0);
+  CHART_CATEGORIES.forEach(c=> totalsByCategory[c.id] = 0);
   entries.forEach(e=> totalsByCategory[e.category] = (totalsByCategory[e.category] || 0) + e.points);
 
-  const usedCats = CATEGORIES.filter(c=> totalsByCategory[c.id] > 0);
+  const usedCats = CHART_CATEGORIES.filter(c=> totalsByCategory[c.id] > 0);
 
   if(usedCats.length === 0){
     openModal(`<h3>${player.name}</h3><p class="modal-sub">Noch keine Punkte in diesem Zeitraum.</p>`);
@@ -1493,6 +1519,7 @@ async function saveEditEntry(entryId){
   if(error){ alert("Fehler beim Speichern: " + error.message); return; }
   closeModal();
   showToast("Eintrag aktualisiert");
+  await recomputeDiversityBonus(entry.player_id, new Date(entry.created_at));
   loadAndRender();
 }
 
@@ -1517,7 +1544,28 @@ function renderWho(){
   });
 }
 
+function renderDiversityHint(){
+  const el = document.getElementById("diversityHint");
+  if(!el) return;
+  const today = new Date();
+  const startOfBonus = new Date(BONUS_START_DATE.getFullYear(), BONUS_START_DATE.getMonth(), BONUS_START_DATE.getDate());
+  if(new Date(today.getFullYear(), today.getMonth(), today.getDate()) < startOfBonus){ el.textContent = ""; return; }
+
+  const {start, end} = dayBounds();
+  const todays = allEntries.filter(e=>
+    e.player_id === currentPlayer && new Date(e.created_at) >= start && new Date(e.created_at) < end);
+  const { count, bonus } = computeDiversity(todays);
+  const factor = (count * BONUS_PER_CATEGORY).toFixed(1).replace(".", ",");
+
+  if(!currentPlayer || count === 0){
+    el.innerHTML = `Vielfalt-Bonus: jede verschiedene Kategorie heute erhöht deinen Faktor um <strong>0,1</strong> auf die Tagespunkte.`;
+  } else {
+    el.innerHTML = `Vielfalt heute: <strong>${count} Kategorie${count === 1 ? "" : "n"} · Faktor ${factor}</strong> → +${bonus} Pkt Bonus`;
+  }
+}
+
 function renderCats(){
+  renderDiversityHint();
   const el = document.getElementById("cats");
   el.innerHTML = "";
   CATEGORIES.forEach(c=>{
@@ -1570,6 +1618,58 @@ async function logNumeric(catId){
 
 let submitting = false; // verhindert, dass ein schneller Doppel-Tipp zwei Einträge erzeugt
 
+// Berechnet aus den Einträgen EINES Tages (einer Person) Anzahl Kategorien,
+// Tagespunkte (ohne Bonus) und den daraus folgenden Bonus.
+function computeDiversity(dayEntries){
+  const real = dayEntries.filter(e=> e.category !== BONUS_CATEGORY_ID);
+  const count = new Set(real.map(e=> e.category)).size;
+  const dayPoints = real.reduce((s,e)=> s + e.points, 0);
+  const bonus = Math.round(dayPoints * count * BONUS_PER_CATEGORY + 1e-9);
+  return { count, dayPoints, bonus };
+}
+
+// Stellt sicher, dass für diese Person an diesem Tag genau ein korrekt
+// berechneter Bonus-Eintrag existiert (anlegen, anpassen oder entfernen).
+// Liest den Tag frisch aus der Datenbank statt aus dem lokalen Zwischenspeicher.
+async function recomputeDiversityBonus(playerId, dayDate){
+  const dayStart = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+  if(dayStart < new Date(BONUS_START_DATE.getFullYear(), BONUS_START_DATE.getMonth(), BONUS_START_DATE.getDate())) return;
+  const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+
+  const { data, error } = await sb.from("entries").select("*")
+    .eq("player_id", playerId)
+    .gte("created_at", dayStart.toISOString())
+    .lt("created_at", dayEnd.toISOString());
+  if(error){ console.error("Bonus-Berechnung:", error); return; }
+
+  const rows = data || [];
+  const { count, bonus } = computeDiversity(rows);
+  const existing = rows.filter(e=> e.category === BONUS_CATEGORY_ID);
+
+  if(bonus <= 0){
+    for(const e of existing) await sb.from("entries").delete().eq("id", e.id);
+    return;
+  }
+
+  if(existing.length > 0){
+    const [keep, ...dupes] = existing;
+    if(keep.points !== bonus || keep.raw_value !== count){
+      await sb.from("entries").update({ points: bonus, raw_value: count }).eq("id", keep.id);
+    }
+    for(const d of dupes) await sb.from("entries").delete().eq("id", d.id); // Doppelte aus Zufällen aufräumen
+    return;
+  }
+
+  const ts = new Date(dayStart); ts.setHours(23, 59, 59, 0); // liegt immer ans Tagesende, im richtigen Tag
+  await sb.from("entries").insert({
+    player_id: playerId,
+    category: BONUS_CATEGORY_ID,
+    points: bonus,
+    raw_value: count,
+    created_at: ts.toISOString()
+  });
+}
+
 async function insertEntry(categoryId, points, toastMsg, rawValue){
   if(submitting) return;
   submitting = true;
@@ -1583,6 +1683,7 @@ async function insertEntry(categoryId, points, toastMsg, rawValue){
     if(error){ alert("Fehler beim Speichern: " + error.message); return; }
     hapticFeedback();
     showToast(toastMsg);
+    await recomputeDiversityBonus(currentPlayer, new Date());
     await loadAndRender(); // erst neu laden, damit Sperren/Zähler sofort stimmen
   } finally {
     submitting = false;
@@ -1591,8 +1692,10 @@ async function insertEntry(categoryId, points, toastMsg, rawValue){
 
 async function deleteEntry(id){
   if(!confirm("Diesen Eintrag wirklich löschen?")) return;
+  const entry = allEntries.find(e=> e.id === id); // merken, bevor er weg ist
   const { error } = await sb.from("entries").delete().eq("id", id);
   if(error){ alert("Fehler beim Löschen: " + error.message); return; }
+  if(entry && entry.category !== BONUS_CATEGORY_ID) await recomputeDiversityBonus(entry.player_id, new Date(entry.created_at));
   loadAndRender();
 }
 
@@ -1908,11 +2011,11 @@ function toggleFeed(){
 // Kategorie am meisten trägt.
 function buildCategoryByPlayerChart(entries){
   const catTotals = {};
-  CATEGORIES.forEach(c=>{ catTotals[c.id] = {}; PLAYERS.forEach(p=> catTotals[c.id][p.id] = 0); });
+  CHART_CATEGORIES.forEach(c=>{ catTotals[c.id] = {}; PLAYERS.forEach(p=> catTotals[c.id][p.id] = 0); });
   entries.forEach(e=>{
     if(catTotals[e.category]) catTotals[e.category][e.player_id] += e.points;
   });
-  const usedCats = CATEGORIES.filter(c=> PLAYERS.some(p=> catTotals[c.id][p.id] > 0));
+  const usedCats = CHART_CATEGORIES.filter(c=> PLAYERS.some(p=> catTotals[c.id][p.id] > 0));
   const labels = usedCats.map(c=> c.label.length > 16 ? c.label.slice(0,14) + "…" : c.label);
   const datasets = PLAYERS.map(p=> ({
     label: p.name,
@@ -2033,7 +2136,7 @@ function renderFeed(entries){
   const byId = {};
   PLAYERS.forEach(p=> byId[p.id] = p.name);
   const catLabel = {};
-  CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
+  CHART_CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
 
   const todayKey = isoDateKey(new Date());
   if(expandedFeedDays.size === 0) expandedFeedDays.add(todayKey); // beim allerersten Mal: heute offen
@@ -2052,13 +2155,18 @@ function renderFeed(entries){
 
     const itemsHtml = dayEntries.map(e=>{
       const d = new Date(e.created_at);
-      const time = d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
-      const catText = catLabel[e.category] || e.category;
+      const isBonus = e.category === BONUS_CATEGORY_ID;
+      const time = isBonus ? "Tagesbonus" : d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+      const catText = isBonus
+        ? `${BONUS_CATEGORY_LABEL} (${e.raw_value || "?"} ${e.raw_value === 1 ? "Kategorie" : "Kategorien"})`
+        : (catLabel[e.category] || e.category);
       const cat = CATEGORIES.find(c=> c.id === e.category);
       const editBtn = cat && cat.type === "numeric" ? `<button class="edit-btn" onclick="openEditModal('${e.id}')" title="Bearbeiten">✎</button>` : "";
+      // Der Bonus wird automatisch berechnet — dort gibt es nichts zu löschen/bearbeiten.
+      const delBtn = isBonus ? "" : `<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button>`;
       return `<div class="feed-item">
         <div><span class="feed-name" style="color:${PLAYER_COLORS[e.player_id] || 'var(--text)'}">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
-        <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button></div>
+        <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}${delBtn}</div>
       </div>`;
     }).join("");
 
