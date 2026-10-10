@@ -1547,10 +1547,11 @@ function renderWho(){
 // Prüft für die ausgewählte Person alle Tage seit Bonus-Start lokal auf falsche
 // oder fehlende Bonus-Einträge (z.B. aus der Zeit vor dieser Absicherung) und
 // korrigiert nur dort, wo wirklich etwas abweicht. Läuft einmal pro App-Start.
-let bonusHealed = false;
+let bonusHealing = false, bonusHealRuns = 0;
 async function healDiversityBonus(){
-  if(bonusHealed || !currentPlayer) return;
-  bonusHealed = true;
+  if(bonusHealing || !currentPlayer) return;
+  bonusHealing = true;
+  try {
   let changed = false;
   const startDay = new Date(BONUS_START_DATE.getFullYear(), BONUS_START_DATE.getMonth(), BONUS_START_DATE.getDate());
   const now = new Date();
@@ -1559,19 +1560,22 @@ async function healDiversityBonus(){
   for(let day = new Date(startDay); day <= today; day.setDate(day.getDate()+1)){
     const dayStart = new Date(day);
     const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+   for(const pl of PLAYERS){
     const rows = allEntries.filter(e=>
-      e.player_id === currentPlayer && new Date(e.created_at) >= dayStart && new Date(e.created_at) < dayEnd);
+      e.player_id === pl.id && new Date(e.created_at) >= dayStart && new Date(e.created_at) < dayEnd);
     const { count, bonus } = computeDiversity(rows);
     const existing = rows.filter(e=> e.category === BONUS_CATEGORY_ID);
     const ok = bonus > 0
       ? (existing.length === 1 && existing[0].points === bonus && existing[0].raw_value === count)
       : existing.length === 0;
     if(!ok){
-      await recomputeDiversityBonus(currentPlayer, new Date(dayStart));
+      await recomputeDiversityBonus(pl.id, new Date(dayStart));
       changed = true;
     }
+   }
   }
-  if(changed) await loadAndRender();
+  if(changed && ++bonusHealRuns <= 5){ bonusHealing = false; await loadAndRender(); }
+  } finally { bonusHealing = false; }
 }
 
 function renderDiversityHint(){
@@ -2299,6 +2303,7 @@ async function loadAndRender(){
   allSpends = spendsRes.data || [];
   buildMonthOptions();
   applyView();
+  if(!submitting) healDiversityBonus().catch(err=> console.error("Bonus-Prüfung:", err));
 }
 
 function subscribeRealtime(){
