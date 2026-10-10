@@ -1515,8 +1515,8 @@ async function saveEditEntry(entryId){
   const multiplier = cat.displayMultiplier || 1;
   const rawValue = value * multiplier;
 
-  const { error } = await sb.from("entries").update({ points, raw_value: rawValue }).eq("id", entryId);
-  if(error){ alert("Fehler beim Speichern: " + error.message); return; }
+  const res = await updateEntry(entry, { points, raw_value: rawValue });
+  if(res.error){ alert("Fehler beim Speichern: " + res.error.message); return; }
   closeModal();
   showToast("Eintrag aktualisiert");
   await recomputeDiversityBonus(entry.player_id, new Date(entry.created_at));
@@ -1542,6 +1542,36 @@ function renderWho(){
     };
     el.appendChild(btn);
   });
+}
+
+// Prüft für die ausgewählte Person alle Tage seit Bonus-Start lokal auf falsche
+// oder fehlende Bonus-Einträge (z.B. aus der Zeit vor dieser Absicherung) und
+// korrigiert nur dort, wo wirklich etwas abweicht. Läuft einmal pro App-Start.
+let bonusHealed = false;
+async function healDiversityBonus(){
+  if(bonusHealed || !currentPlayer) return;
+  bonusHealed = true;
+  let changed = false;
+  const startDay = new Date(BONUS_START_DATE.getFullYear(), BONUS_START_DATE.getMonth(), BONUS_START_DATE.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  for(let day = new Date(startDay); day <= today; day.setDate(day.getDate()+1)){
+    const dayStart = new Date(day);
+    const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+    const rows = allEntries.filter(e=>
+      e.player_id === currentPlayer && new Date(e.created_at) >= dayStart && new Date(e.created_at) < dayEnd);
+    const { count, bonus } = computeDiversity(rows);
+    const existing = rows.filter(e=> e.category === BONUS_CATEGORY_ID);
+    const ok = bonus > 0
+      ? (existing.length === 1 && existing[0].points === bonus && existing[0].raw_value === count)
+      : existing.length === 0;
+    if(!ok){
+      await recomputeDiversityBonus(currentPlayer, new Date(dayStart));
+      changed = true;
+    }
+  }
+  if(changed) await loadAndRender();
 }
 
 function renderDiversityHint(){
@@ -1628,6 +1658,26 @@ function computeDiversity(dayEntries){
   return { count, dayPoints, bonus };
 }
 
+// Ändert einen Eintrag. Supabase verwirft UPDATEs OHNE Fehlermeldung, wenn für die
+// Tabelle keine UPDATE-Berechtigung (Row-Level-Security-Policy) existiert — dann
+// sind 0 Zeilen betroffen und die Änderung geht still verloren. Das erkennen wir
+// daran, dass nichts zurückkommt, und weichen auf "löschen + identisch neu anlegen"
+// aus (dafür gibt es Berechtigungen), damit es auch ohne die UPDATE-Policy klappt.
+async function updateEntry(row, patch){
+  const upd = await sb.from("entries").update(patch).eq("id", row.id).select();
+  if(upd.error) return { error: upd.error };
+  if(upd.data && upd.data.length > 0) return { error: null, replaced: false };
+
+  const del = await sb.from("entries").delete().eq("id", row.id).select();
+  if(del.error) return { error: del.error };
+  if(!del.data || del.data.length === 0){
+    return { error: { message: "Die Datenbank hat die Änderung blockiert (fehlende Berechtigung)." } };
+  }
+  const { id, ...rest } = row; // gleiche Person, Kategorie und Uhrzeit, nur neue Werte
+  const ins = await sb.from("entries").insert({ ...rest, ...patch });
+  return { error: ins.error || null, replaced: true };
+}
+
 // Stellt sicher, dass für diese Person an diesem Tag genau ein korrekt
 // berechneter Bonus-Eintrag existiert (anlegen, anpassen oder entfernen).
 // Liest den Tag frisch aus der Datenbank statt aus dem lokalen Zwischenspeicher.
@@ -1654,7 +1704,8 @@ async function recomputeDiversityBonus(playerId, dayDate){
   if(existing.length > 0){
     const [keep, ...dupes] = existing;
     if(keep.points !== bonus || keep.raw_value !== count){
-      await sb.from("entries").update({ points: bonus, raw_value: count }).eq("id", keep.id);
+      const res = await updateEntry(keep, { points: bonus, raw_value: count });
+      if(res.error) console.error("Bonus konnte nicht aktualisiert werden:", res.error);
     }
     for(const d of dupes) await sb.from("entries").delete().eq("id", d.id); // Doppelte aus Zufällen aufräumen
     return;
@@ -2330,6 +2381,7 @@ async function init(){
   renderCats();
   await loadAndRender();
   subscribeRealtime();
+  healDiversityBonus().catch(err=> console.error("Bonus-Prüfung:", err));
 
   // Handys unterbrechen die Live-Verbindung im Hintergrund (Akku sparen).
   // Beim Zurückkommen wird zwar neu verbunden, aber verpasste Änderungen
