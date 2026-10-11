@@ -1131,7 +1131,11 @@ const CATEGORIES = [
   { id: "schritte",                label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
   { id: "lesen",                    label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
   { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity },
-  { id: "screentime_ziel",           label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 50, limit: "week-monday" },
+  { id: "screentime_u2",             label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 180, limit: "week-monday", group: "screentime_tier" },
+  { id: "screentime_u3",             label: "Social-Media-Wochenschnitt unter 3h",          type: "flat",  points: 100, limit: "week-monday", group: "screentime_tier" },
+  { id: "screentime_u4",             label: "Social-Media-Wochenschnitt unter 4h",          type: "flat",  points: 50,  limit: "week-monday", group: "screentime_tier" },
+  // Alte Stufe (früher 50 Punkte für unter 2h): nur noch für bestehende Einträge, nicht mehr eintragbar.
+  { id: "screentime_ziel",           label: "Social-Media-Wochenschnitt unter 2h (alt)",    type: "flat",  points: 50, limit: "week-monday", group: "screentime_tier", hidden: true },
 ];
 
 // Vielfalt-Bonus: pro Tag erhöht jede verschiedene erledigte Kategorie einen
@@ -1576,8 +1580,10 @@ function categoryLockState(cat){
   if(!cat.limit || !currentPlayer) return { locked: false };
   const max = cat.maxPerPeriod || 1;
 
-  const countIn = (start, end)=> currentMonthEntries.filter(e=>
-    e.player_id === currentPlayer && e.category === cat.id &&
+  // Kategorien mit gleicher "group" teilen sich das Limit (z.B. nur eine Social-Media-Stufe pro Woche).
+  const ids = cat.group ? CATEGORIES.filter(c=> c.group === cat.group).map(c=> c.id) : [cat.id];
+  const countIn = (start, end)=> allEntries.filter(e=>
+    e.player_id === currentPlayer && ids.includes(e.category) &&
     new Date(e.created_at) >= start && new Date(e.created_at) < end
   ).length;
 
@@ -2142,6 +2148,7 @@ function renderCats(){
   const el = document.getElementById("cats");
   el.innerHTML = "";
   CATEGORIES.forEach(c=>{
+    if(c.hidden) return;
     if(c.type === "flat"){
       const lock = categoryLockState(c);
       const btn = document.createElement("button");
