@@ -710,6 +710,26 @@
   }
   .edit-btn:hover{color:var(--blue);}
   .empty{color:var(--text-dim);font-size:13px;padding:16px 0;}
+
+  /* Jahres-Heatmap */
+  section.heat{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:24px; }
+  section.heat h2{ font-size:14px; font-weight:600; margin:0 0 12px; color:var(--text-dim); }
+  .heat-tabs{ display:flex; gap:6px; margin-bottom:12px; }
+  .heat-tabs button{ flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text-dim); border-radius:8px; padding:7px 4px; font-size:13px; font-family:'Inter'; cursor:pointer; }
+  .heat-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px; }
+  .heat-months{ display:grid; grid-auto-flow:column; grid-auto-columns:13px; gap:3px; font-size:10px; color:var(--text-dim); height:14px; margin-bottom:3px; white-space:nowrap; }
+  .heat-grid{ display:grid; grid-template-rows:repeat(7,13px); grid-auto-flow:column; grid-auto-columns:13px; gap:3px; }
+  .heat-cell{ width:13px; height:13px; border-radius:3px; background:var(--panel-2); }
+  .heat-cell.today{ outline:1px solid var(--text-dim); }
+  .heat-sum{ font-size:12px; color:var(--text-dim); margin-top:8px; }
+  .heat-legend{ display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-dim); margin-top:6px; }
+  .heat-legend i{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  section.backup{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:24px; }
+  section.backup h2{ font-size:14px; font-weight:600; margin:0 0 6px; color:var(--text-dim); }
+  section.backup p{ font-size:12px; color:var(--text-dim); margin:0 0 12px; line-height:1.5; }
+  .backup-btns{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .backup-btns button{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px 4px; font-size:12px; font-family:'Inter'; cursor:pointer; }
+  .backup-btns button:active{ border-color:var(--blue); }
 </style>
 </head>
 <body>
@@ -784,6 +804,28 @@
   <section class="feed">
     <h2 class="feed-toggle" onclick="toggleFeed()">Letzte Einträge <span id="feedToggleIcon">▸</span></h2>
     <div id="feed" style="display:none"></div>
+  </section>
+
+  <section class="heat">
+    <h2>Jahresübersicht</h2>
+    <div class="heat-tabs" id="heatTabs"></div>
+    <div class="heat-scroll" id="heatScroll">
+      <div class="heat-months" id="heatMonths"></div>
+      <div class="heat-grid" id="heatGrid"></div>
+    </div>
+    <div class="heat-sum" id="heatSum"></div>
+    <div class="heat-legend" id="heatLegend"></div>
+  </section>
+
+  <section class="backup">
+    <h2>Backup</h2>
+    <p>Lade regelmäßig ein Backup herunter, falls mal Daten verloren gehen. Beim Einspielen werden nur fehlende Einträge ergänzt, nichts wird überschrieben oder gelöscht.</p>
+    <div class="backup-btns">
+      <button onclick="downloadBackupJson()">Backup (JSON)</button>
+      <button onclick="downloadBackupCsv()">Tabelle (CSV)</button>
+      <button onclick="document.getElementById('backupFile').click()">Einspielen</button>
+    </div>
+    <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackupFile(this)">
   </section>
 
 </div>
@@ -2285,6 +2327,7 @@ function applyView(){
   renderFeed(viewedEntries);
   renderCats();
   renderWallet();
+  renderHeatmap();
   updateTicker();
   if(isLive){
     maybeCelebrateMonthWin();
@@ -2304,6 +2347,115 @@ async function loadAndRender(){
   buildMonthOptions();
   applyView();
   if(!submitting) healDiversityBonus().catch(err=> console.error("Bonus-Prüfung:", err));
+}
+
+
+// ---------- Jahres-Heatmap ----------
+let heatPlayer = null;
+function dayKeyLocal(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function hexToRgba(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function selectHeatPlayer(id){ heatPlayer = id; renderHeatmap(); }
+function renderHeatmap(){
+  const grid = document.getElementById("heatGrid");
+  if(!grid) return;
+  if(!heatPlayer) heatPlayer = (typeof currentPlayer !== "undefined" && currentPlayer) || PLAYERS[0].id;
+  const color = PLAYER_COLORS[heatPlayer] || "#4C6FFF";
+
+  document.getElementById("heatTabs").innerHTML = PLAYERS.map(p=>{
+    const on = p.id === heatPlayer;
+    return `<button onclick="selectHeatPlayer('${p.id}')" style="${on ? `border-color:${PLAYER_COLORS[p.id]};color:${PLAYER_COLORS[p.id]};` : ""}">${p.name}</button>`;
+  }).join("");
+
+  const perDay = {};
+  for(const e of allEntries){
+    if(e.player_id !== heatPlayer) continue;
+    const k = dayKeyLocal(new Date(e.created_at));
+    perDay[k] = (perDay[k]||0) + e.points;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  // Start: Montag vor ca. 52 Wochen, damit Spalten = Wochen (Mo-So)
+  const end = new Date(today);
+  const dow = (today.getDay()+6)%7; // Mo=0
+  const start = new Date(today); start.setDate(start.getDate() - dow - 52*7);
+
+  const values = Object.values(perDay).filter(v=> v>0).sort((a,b)=> a-b);
+  const q = f=> values.length ? values[Math.min(values.length-1, Math.floor(values.length*f))] : 1;
+  const t1=q(0.25), t2=q(0.5), t3=q(0.75);
+  const level = v=> v<=0 ? 0 : v<=t1 ? 1 : v<=t2 ? 2 : v<=t3 ? 3 : 4;
+  const alphas = [0, 0.28, 0.5, 0.75, 1];
+
+  let cells = "", months = "", lastMonth = -1, col = 0, activeDays = 0, total = 0;
+  const wd = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  for(let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
+    const idx = (d.getDay()+6)%7;
+    if(idx === 0){
+      const m = d.getMonth();
+      months += `<span>${m !== lastMonth ? d.toLocaleDateString('de-DE',{month:'short'}) : ""}</span>`;
+      lastMonth = m; col++;
+    }
+    const k = dayKeyLocal(d);
+    const v = perDay[k] || 0;
+    if(v>0){ activeDays++; total += v; }
+    const lv = level(v);
+    const isToday = d.getTime() === today.getTime();
+    cells += `<div class="heat-cell${isToday?" today":""}" title="${wd[idx]} ${d.toLocaleDateString('de-DE')}: ${v} Punkte" onclick="showToast('${wd[idx]} ${d.toLocaleDateString('de-DE')}: ${v} Punkte')" style="${lv ? `background:${hexToRgba(color, alphas[lv])}` : ""}"></div>`;
+  }
+  grid.innerHTML = cells;
+  document.getElementById("heatMonths").innerHTML = months;
+  document.getElementById("heatSum").textContent = `${activeDays} aktive Tage · ${total} Punkte in den letzten 12 Monaten`;
+  document.getElementById("heatLegend").innerHTML = `weniger ${[0,1,2,3,4].map(l=> `<i style="background:${l ? hexToRgba(color, alphas[l]) : "var(--panel-2)"}"></i>`).join("")} mehr`;
+  const sc = document.getElementById("heatScroll");
+  if(sc) sc.scrollLeft = sc.scrollWidth; // heute rechts sichtbar
+}
+
+// ---------- Backup ----------
+function downloadBlob(name, text, type){
+  const url = URL.createObjectURL(new Blob([text], {type}));
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 2000);
+}
+function backupStamp(){ return dayKeyLocal(new Date()); }
+async function fetchAllForBackup(){
+  const [e, w] = await Promise.all([
+    sb.from("entries").select("*").order("created_at", {ascending:true}),
+    sb.from("wallet_spends").select("*").order("created_at", {ascending:true}),
+  ]);
+  if(e.error || w.error){ alert("Backup fehlgeschlagen: " + ((e.error||w.error).message)); return null; }
+  return { entries: e.data||[], wallet_spends: w.data||[] };
+}
+async function downloadBackupJson(){
+  const data = await fetchAllForBackup(); if(!data) return;
+  const payload = { app:"scoreboard", version:1, exported_at:new Date().toISOString(), ...data };
+  downloadBlob(`scoreboard-backup-${backupStamp()}.json`, JSON.stringify(payload, null, 2), "application/json");
+  showToast(`Backup: ${data.entries.length} Einträge`);
+}
+async function downloadBackupCsv(){
+  const data = await fetchAllForBackup(); if(!data) return;
+  const name = id=> (PLAYERS.find(p=>p.id===id)||{name:id}).name;
+  const esc = v=> `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const lines = ["Datum;Person;Kategorie;Punkte;Wert"];
+  for(const e of data.entries) lines.push([new Date(e.created_at).toLocaleString("de-DE"), name(e.player_id), e.category, e.points, e.raw_value ?? ""].map(esc).join(";"));
+  downloadBlob(`scoreboard-${backupStamp()}.csv`, "﻿"+lines.join("\n"), "text/csv;charset=utf-8");
+}
+async function importBackupFile(input){
+  const file = input.files && input.files[0];
+  input.value = "";
+  if(!file) return;
+  let data;
+  try { data = JSON.parse(await file.text()); } catch(err){ alert("Die Datei ist kein gültiges Backup."); return; }
+  if(!data || data.app !== "scoreboard" || !Array.isArray(data.entries)){ alert("Das ist kein Scoreboard-Backup."); return; }
+  const wallet = Array.isArray(data.wallet_spends) ? data.wallet_spends : [];
+  if(!confirm(`Backup einspielen?\n${data.entries.length} Einträge, ${wallet.length} Guthaben-Buchungen.\nNur fehlende Einträge werden ergänzt.`)) return;
+  const eRes = data.entries.length ? await sb.from("entries").upsert(data.entries, {onConflict:"id", ignoreDuplicates:true}) : {};
+  const wRes = wallet.length ? await sb.from("wallet_spends").upsert(wallet, {onConflict:"id", ignoreDuplicates:true}) : {};
+  if(eRes.error || wRes.error){ alert("Einspielen fehlgeschlagen: " + ((eRes.error||wRes.error).message)); return; }
+  showToast("Backup eingespielt");
+  await loadAndRender();
 }
 
 function subscribeRealtime(){
