@@ -12,7 +12,11 @@
     try {
       var t = localStorage.getItem("sb_theme_v1");
       var bg = { kuerbis:"#1A1108", nebelwald:"#0E1811", apfel:"#F7EEDF" };
+      var fonts = { kuerbis:"Fraunces:opsz,wght@9..144,700;9..144,800", nebelwald:"Space+Grotesk:wght@500;700", apfel:"DM+Serif+Display" };
       if(t && bg[t]){
+        var l = document.createElement("link"); l.rel = "stylesheet"; l.id = "themeFont-" + t;
+        l.href = "https://fonts.googleapis.com/css2?family=" + fonts[t] + "&display=swap";
+        document.head.appendChild(l);
         document.documentElement.setAttribute("data-theme", t);
         document.querySelector('meta[name="theme-color"]').setAttribute("content", bg[t]);
       }
@@ -43,6 +47,8 @@
     --accent:#4C6FFF;
     --grid:#2A2D34;
     --glow:rgba(255,255,255,0.035);
+    --font-display:'Archivo',sans-serif;
+    --shine:rgba(255,236,170,.35);
   }
 
   /* ===== Herbst-Themes =====
@@ -95,7 +101,6 @@
     0%,100%{ box-shadow:0 0 0 0 rgba(232,121,43,0); }
     50%    { box-shadow:0 0 22px 2px rgba(232,121,43,.28); }
   }
-  html[data-theme="kuerbis"] .card.rank-1{ animation:pumpkinGlow 3.2s ease-in-out infinite; }
   /* Apfelernte: Karten schaukeln ganz leicht */
   @keyframes cardSway{ 0%,100%{ transform:rotate(-.5deg); } 50%{ transform:rotate(.5deg); } }
   html[data-theme="apfel"] .card{ animation:cardSway 5s ease-in-out infinite; }
@@ -110,6 +115,149 @@
     .fx-layer{ display:none; }
     html[data-theme] .card, html[data-theme] section{ animation:none !important; }
   }
+
+
+  /* ===== Platz 1: Krone, Schimmer, goldene Zahl (alle Designs) ===== */
+  .card.rank-1{
+    border-color:var(--gold);
+    box-shadow:0 0 0 1px var(--gold), 0 8px 26px -10px var(--gold);
+    background:
+      radial-gradient(120% 80% at 50% -20%, color-mix(in srgb, var(--gold) 16%, transparent), transparent 70%),
+      var(--panel);
+  }
+  .card.rank-1::after{
+    content:""; position:absolute; inset:-40% -60%; pointer-events:none;
+    background:linear-gradient(105deg, transparent 42%, var(--shine) 50%, transparent 58%);
+    transform:translateX(-70%);
+    animation:cardShine 4.2s ease-in-out infinite;
+  }
+  @keyframes cardShine{ 0%,55%{ transform:translateX(-70%); } 100%{ transform:translateX(70%); } }
+  .card.rank-1 .rank-tag{ display:flex; align-items:center; gap:4px; font-weight:600; }
+  .card.rank-1 .rank-tag::before{
+    content:""; width:13px; height:13px; flex:none; background:var(--gold);
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 7.5l4.6 4.3L12 4.5l4.4 7.3L21 7.5 19.3 18.5H4.7Z'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 7.5l4.6 4.3L12 4.5l4.4 7.3L21 7.5 19.3 18.5H4.7Z'/%3E%3C/svg%3E") center/contain no-repeat;
+    animation:crownBob 2.6s ease-in-out infinite;
+  }
+  @keyframes crownBob{ 0%,100%{ transform:translateY(0) rotate(-6deg); } 50%{ transform:translateY(-1.5px) rotate(6deg); } }
+  .card.rank-1 .p-score .num{
+    background:linear-gradient(100deg, var(--text) 30%, var(--gold) 45%, #fff6d8 50%, var(--gold) 55%, var(--text) 70%);
+    background-size:300% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:numShine 4.2s ease-in-out infinite;
+  }
+  @keyframes numShine{ 0%,55%{ background-position:100% 0; } 100%{ background-position:0 0; } }
+
+  /* Titel-Icon je Design */
+  html[data-theme] header h1{ display:flex; align-items:center; gap:9px; }
+  html[data-theme] header h1::before{
+    content:""; width:24px; height:24px; flex:none; background:var(--accent);
+    -webkit-mask:var(--title-icon) center/contain no-repeat; mask:var(--title-icon) center/contain no-repeat;
+  }
+
+  /* ===== Kürbis-Glow: Kerzenschein, warme Serifenschrift, glänzende Karten ===== */
+  html[data-theme="kuerbis"]{
+    --font-display:'Fraunces',Georgia,serif; --gold:#F2A93B; --shine:rgba(255,200,120,.32);
+    --title-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11.3 6.6c0-2 .7-3.3 2.4-4.2l.7 1.1c-1.1.6-1.6 1.5-1.6 3.1Zm-2.5.4C5.6 7 3 9.8 3 13.8S5.6 21 8.8 21c1.2 0 2.2-.4 3.2-1.1 1 .7 2 1.1 3.2 1.1 3.2 0 5.8-3.2 5.8-7.2S18.4 7 15.2 7c-1.2 0-2.2.4-3.2 1-1-.6-2-1-3.2-1Z'/%3E%3C/svg%3E");
+  }
+  html[data-theme="kuerbis"] body{
+    background:
+      radial-gradient(900px 520px at 50% 108%, rgba(232,121,43,.22), transparent 70%),
+      radial-gradient(600px 300px at 50% -8%, rgba(255,184,107,.08), transparent 70%),
+      var(--bg);
+    background-attachment:fixed;
+  }
+  html[data-theme="kuerbis"] :is(.card, section.chart, section.log, section.wallet, section.heat, .stakes, .modal-box){
+    background:linear-gradient(180deg, #2D1E0F 0%, #22160A 100%);
+    border-color:#43301A;
+    box-shadow:inset 0 1px 0 rgba(255,214,160,.07), 0 10px 24px -14px rgba(0,0,0,.8);
+    border-radius:14px;
+  }
+  html[data-theme="kuerbis"] .card.rank-1{
+    background:
+      radial-gradient(120% 80% at 50% -20%, rgba(242,169,59,.22), transparent 70%),
+      linear-gradient(180deg, #33210F, #24170A);
+    box-shadow:0 0 0 1px var(--gold), 0 0 26px -4px rgba(232,121,43,.55);
+    animation:pumpkinGlow 3.2s ease-in-out infinite;
+  }
+  @keyframes pumpkinGlow{
+    0%,100%{ box-shadow:0 0 0 1px var(--gold), 0 0 18px -6px rgba(232,121,43,.45); }
+    50%    { box-shadow:0 0 0 1px var(--gold), 0 0 32px -2px rgba(232,121,43,.7); }
+  }
+  html[data-theme="kuerbis"] :is(.cat-btn, #who button, .wallet-card, .heat-tabs button){
+    background:linear-gradient(180deg, #3A2714, #2C1D0E); border-color:#4E361C; border-radius:10px;
+  }
+  html[data-theme="kuerbis"] .p-score{ letter-spacing:-0.01em; }
+  html[data-theme="kuerbis"] section h2{ font-family:var(--font-display); font-weight:700; letter-spacing:.01em; }
+
+  /* ===== Nebelwald: Glas-Panels über Tannen-Silhouetten im Nebel ===== */
+  html[data-theme="nebelwald"]{
+    --font-display:'Space Grotesk',system-ui,sans-serif; --gold:#D9D3A6; --shine:rgba(225,240,228,.22);
+    --panel:rgba(20,34,25,.58); --panel-2:rgba(32,50,38,.55); --line:rgba(170,205,178,.14);
+    --title-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 6.6 9.6h2.6L5 15.4h4.3L6 20.5h5v1.5h2v-1.5h5l-3.3-5.1H19l-4.2-5.8h2.6Z'/%3E%3C/svg%3E");
+  }
+  html[data-theme="nebelwald"] body{
+    background:linear-gradient(180deg, #0B140F 0%, #12201A 55%, #18291F 100%);
+    background-attachment:fixed;
+  }
+  html[data-theme="nebelwald"] :is(.card, section.chart, section.log, section.wallet, section.heat, .stakes, .modal-box, #who button, .month-nav > *){
+    -webkit-backdrop-filter:blur(12px) saturate(1.15); backdrop-filter:blur(12px) saturate(1.15);
+  }
+  html[data-theme="nebelwald"] :is(.card, section.chart, section.log, section.wallet, section.heat, .stakes){
+    border-radius:16px; box-shadow:inset 0 1px 0 rgba(220,240,225,.06);
+  }
+  html[data-theme="nebelwald"] .modal-box{ background:rgba(16,28,20,.88); }
+  html[data-theme="nebelwald"] h1, html[data-theme="nebelwald"] .p-score{ letter-spacing:-0.03em; }
+  html[data-theme="nebelwald"] section h2{ text-transform:uppercase; letter-spacing:.12em; font-size:11px; }
+  html[data-theme="nebelwald"] .card.rank-1{
+    background:
+      radial-gradient(120% 80% at 50% -20%, rgba(217,211,166,.16), transparent 70%),
+      rgba(26,42,31,.7);
+    box-shadow:0 0 0 1px rgba(217,211,166,.7), 0 0 30px -8px rgba(200,230,205,.45);
+  }
+
+  /* ===== Apfelernte: Papier, weiche Schatten, Serifen-Zahlen, Ast mit Äpfeln ===== */
+  html[data-theme="apfel"]{
+    --font-display:'DM Serif Display',Georgia,serif; --shine:rgba(255,255,255,.7);
+    --title-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 7.6c-1.4-1-3-1.4-4.5-.9C4.8 7.5 3.6 10.6 4.3 14.1c.8 4 3.5 6.9 5.6 6.9.8 0 1.4-.4 2.1-.4s1.3.4 2.1.4c2.1 0 4.8-2.9 5.6-6.9.7-3.5-.5-6.6-3.2-7.4-1.5-.5-3.1-.1-4.5.9Zm.3-1.3c.1-2 1.2-3.5 3.3-4-.1 2-1.3 3.5-3.3 4Z'/%3E%3C/svg%3E");
+  }
+  html[data-theme="apfel"] body{
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(120% 90% at 50% 0%, #FBF4E8, #F1E3CB);
+    background-attachment:fixed;
+  }
+  html[data-theme="apfel"] :is(h1, .p-score, .wallet-bal, .lock-title, .modal-box h3){ font-weight:400; }
+  html[data-theme="apfel"] h1{ font-size:30px; }
+  html[data-theme="apfel"] .wrap{ padding-top:84px; }
+  html[data-theme="apfel"] .branch{ width:170px; height:134px; }
+  html[data-theme="apfel"] :is(.card, section.chart, section.log, section.wallet, section.heat, .stakes, .modal-box){
+    background:#FFFBF4; border:none; border-radius:18px;
+    box-shadow:0 1px 0 #E9D7B8, 0 10px 24px -12px rgba(120,70,20,.22);
+  }
+  html[data-theme="apfel"] .stakes{ box-shadow:0 0 0 1.5px #E7C77A, 0 10px 24px -12px rgba(120,70,20,.22); }
+  html[data-theme="apfel"] :is(.cat-btn, #who button, .wallet-card, .heat-tabs button, .month-nav > *){
+    background:#FFFDF8; border:1px solid #EADBC0; border-radius:12px;
+  }
+  html[data-theme="apfel"] .card.rank-1{
+    background:radial-gradient(120% 80% at 50% -20%, rgba(232,185,63,.22), transparent 70%), #FFFBF4;
+    box-shadow:0 0 0 1.5px var(--gold), 0 12px 28px -10px rgba(184,134,11,.45);
+  }
+  html[data-theme="apfel"] .card.rank-1 .p-score .num{
+    background-image:linear-gradient(100deg, var(--text) 30%, #B8860B 45%, #F3D27A 50%, #B8860B 55%, var(--text) 70%);
+  }
+  html[data-theme="apfel"] .toast{ background:var(--accent); color:#fff; }
+
+  /* Szenerie-Elemente (werden per JS in die fx-Ebene gelegt) */
+  .scene{ position:absolute; left:0; right:0; bottom:0; width:100%; pointer-events:none; }
+  .scene svg{ width:100%; height:100%; display:block; }
+  .ember{ position:absolute; bottom:-10px; width:4px; height:4px; border-radius:50%; background:#FFB347;
+    box-shadow:0 0 6px 2px rgba(255,150,60,.6); animation:emberRise var(--d,9s) linear var(--delay,0s) infinite; opacity:0; }
+  @keyframes emberRise{ 0%{ transform:translate(0,0); opacity:0; } 10%{ opacity:.9; } 100%{ transform:translate(var(--sway,20px),-70vh); opacity:0; } }
+  .branch{ position:absolute; top:-6px; right:-10px; width:190px; height:150px; transform-origin:100% 0;
+    animation:branchSway 6s ease-in-out infinite; }
+  @keyframes branchSway{ 0%,100%{ transform:rotate(0deg); } 50%{ transform:rotate(2.5deg); } }
+  .flicker{ animation:flick 2.4s ease-in-out infinite; }
+  @keyframes flick{ 0%,100%{ opacity:.95; } 40%{ opacity:.6; } 55%{ opacity:.85; } 70%{ opacity:.55; } }
 
   /* Theme-Auswahl */
   .theme-btn{ color:var(--text-dim); display:inline-flex; align-items:center; }
@@ -139,6 +287,11 @@
   .t-card{ border-radius:8px; padding:9px 8px; border:1px solid; border-left-width:3px; }
   .t-card .n{ font-size:11px; font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .t-card .s{ font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; line-height:1; }
+  .theme-opt .t-name, .t-card .s{ font-family:var(--tfont); font-weight:var(--tweight); }
+  .t-card.t-lead{ position:relative; overflow:hidden; box-shadow:0 0 14px -4px rgba(232,185,63,.6); }
+  .t-card.t-lead::after{ content:""; position:absolute; inset:-40% -60%;
+    background:linear-gradient(105deg, transparent 42%, rgba(255,240,200,.35) 50%, transparent 58%);
+    animation:cardShine 3.6s ease-in-out infinite; }
   .t-fx{ position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:1; }
   .t-fx .leaf{ --s:14px; animation-name:leafFallSmall; }
   @keyframes leafFallSmall{
@@ -180,7 +333,7 @@
     flex-wrap:wrap;
   }
   h1{
-    font-family:'Archivo',sans-serif;
+    font-family:var(--font-display);
     font-weight:800;
     font-size:26px;
     margin:0;
@@ -234,7 +387,7 @@
   }
   .lock-icon{ font-size:32px; margin-bottom:8px; }
   .lock-title{
-    font-family:'Archivo',sans-serif;
+    font-family:var(--font-display);
     font-weight:800;
     font-size:22px;
     margin:0 0 4px;
@@ -286,7 +439,7 @@
     overflow-y:auto;
   }
   .modal-box.wide{ max-width:640px; }
-  .modal-box h3{ margin:0 0 4px; font-size:16px; font-family:'Archivo'; }
+  .modal-box h3{ margin:0 0 4px; font-size:16px; font-family:var(--font-display); }
   .modal-sub{ margin:0 0 14px; font-size:12px; color:var(--text-dim); }
   .wrapped-fact{ font-size:13px; color:var(--text); margin-bottom:8px; line-height:1.5; }
   .modal-close{
@@ -468,7 +621,6 @@
     overflow:hidden;
     cursor:pointer;
   }
-  .card.rank-1{border-color:var(--gold);}
   .card:active{border-color:var(--accent);}
   .rank-tag{
     font-size:11px;
@@ -485,7 +637,7 @@
     text-overflow:ellipsis;
   }
   .p-score{
-    font-family:'Archivo',sans-serif;
+    font-family:var(--font-display);
     font-weight:800;
     font-size:32px;
     line-height:1;
@@ -610,7 +762,7 @@
     line-height:1.5;
   }
   .wallet-bal{
-    font-family:'Archivo',sans-serif;
+    font-family:var(--font-display);
     font-weight:800;
     font-size:19px;
     margin-bottom:8px;
@@ -1024,17 +1176,26 @@ const THEMES = {
   kuerbis: {
     name: "Kürbis-Glow", desc: "Orange, warmes Braun, fallende Blätter. Platz 1 glüht.",
     bg: "#1A1108", panel: "#271A0D", line: "#4A3119", text: "#FAEEDA", dim: "#C8A57A", sel: "#E8792B",
-    leaves: ["#E8792B", "#C2491D", "#E8A33A", "#8A3A12"], leafCount: 14, lightText: false,
+    leaves: ["#E8792B", "#C2491D", "#E8A33A", "#8A3A12"], leafCount: 10, lightText: false,
+    font: "Fraunces:opsz,wght@9..144,700;9..144,800", family: "'Fraunces',Georgia,serif", weight: 800,
+    tileBg: "radial-gradient(120% 90% at 50% 120%, rgba(232,121,43,.35), transparent 60%), #1A1108",
+    cardBg: "linear-gradient(180deg,#2D1E0F,#22160A)",
   },
   nebelwald: {
     name: "Nebelwald", desc: "Tannengrün, Grau, wabernder Nebel, ruhig und clean.",
     bg: "#0E1811", panel: "#162319", line: "#2C4131", text: "#E4EEE2", dim: "#9BAF9D", sel: "#6FAE5E",
-    leaves: ["#6E8B5E", "#8A8F7A", "#A08A4E"], leafCount: 7, fog: true, lightText: false,
+    leaves: ["#6E8B5E", "#8A8F7A", "#A08A4E"], leafCount: 6, fog: true, lightText: false,
+    font: "Space+Grotesk:wght@500;700", family: "'Space Grotesk',system-ui,sans-serif", weight: 700,
+    tileBg: "linear-gradient(180deg,#0B140F,#18291F)",
+    cardBg: "rgba(20,34,25,.6)",
   },
   apfel: {
     name: "Apfelernte", desc: "Creme, Apfelrot, gemütlich schaukelnde Karten.",
     bg: "#F7EEDF", panel: "#FFFAF2", line: "#E0CBA9", text: "#3A2410", dim: "#856545", sel: "#C2402E",
-    leaves: ["#C2402E", "#E07A2E", "#D9A23A", "#8E2A1E"], leafCount: 12, lightText: true,
+    leaves: ["#C2402E", "#E07A2E", "#D9A23A", "#8E2A1E"], leafCount: 9, lightText: true,
+    font: "DM+Serif+Display", family: "'DM Serif Display',Georgia,serif", weight: 400,
+    tileBg: "radial-gradient(120% 90% at 50% 0%, #FBF4E8, #F1E3CB)",
+    cardBg: "#FFFBF4",
   },
 };
 const DEFAULT_THEME_COLOR = "#16171A";
@@ -1071,16 +1232,85 @@ function leafHtml(colors, i, opts){
   return `<div class="leaf" style="${style}">${LEAF_SVG}</div>`;
 }
 
+function ensureThemeFont(id){
+  const t = THEMES[id];
+  if(!t || document.getElementById("themeFont-" + id)) return;
+  const l = document.createElement("link");
+  l.rel = "stylesheet"; l.id = "themeFont-" + id;
+  l.href = "https://fonts.googleapis.com/css2?family=" + t.font + "&display=swap";
+  document.head.appendChild(l);
+}
+
+// Tannen-Silhouette als SVG (eine Ebene). Zufällig, aber pro Seitenaufruf stabil.
+function pineLayer(color, count, minH, maxH, baseY){
+  let trees = "";
+  for(let i = 0; i < count; i++){
+    const x = (i + rand(-.3, .3)) * (1000 / count);
+    const h = rand(minH, maxH), w = h * .42;
+    const top = baseY - h;
+    trees += `<path d="M${x} ${top} L${x - w*.55} ${top + h*.45} H${x - w*.28} L${x - w*.8} ${top + h*.78} H${x - w*.4} L${x - w} ${baseY} H${x + w} L${x + w*.4} ${top + h*.78} H${x + w*.8} L${x + w*.28} ${top + h*.45} H${x + w*.55} Z" fill="${color}"/>`;
+  }
+  return `<svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMax slice"><rect x="0" y="${baseY - 2}" width="1000" height="${302 - baseY}" fill="${color}"/>${trees}</svg>`;
+}
+
+function pumpkinSvg(cx, cy, r, face){
+  const body = "#2E1B0B", rim = "rgba(232,121,43,.45)";
+  let out = `<path d="M${cx-2} ${cy-r*.95} q2 ${-r*.35} ${r*.28} ${-r*.42}" stroke="#4A3A1A" stroke-width="${r*.12}" fill="none" stroke-linecap="round"/>`;
+  [[-.55,.62],[.55,.62],[-.22,.7],[.22,.7],[0,.62]].forEach(([dx,rx])=>{
+    out += `<ellipse cx="${cx + dx*r}" cy="${cy}" rx="${r*rx}" ry="${r*.92}" fill="${body}" stroke="${rim}" stroke-width="1.5"/>`;
+  });
+  if(face){
+    out += `<g class="flicker" fill="#F5A742">
+      <path d="M${cx-r*.42} ${cy-r*.15} l${r*.16} ${-r*.26} l${r*.16} ${r*.26}Z"/>
+      <path d="M${cx+r*.1} ${cy-r*.15} l${r*.16} ${-r*.26} l${r*.16} ${r*.26}Z"/>
+      <path d="M${cx-r*.45} ${cy+r*.18} q${r*.45} ${r*.4} ${r*.9} 0 l${-r*.12} ${r*.06} l${-r*.1} ${-r*.08} l${-r*.13} ${r*.1} l${-r*.13} ${-r*.1} l${-r*.13} ${r*.1} l${-r*.1} ${-r*.08}Z"/>
+    </g>`;
+  }
+  return out;
+}
+
+function appleBranchSvg(){
+  return `<svg viewBox="0 0 190 150">
+    <path d="M195 6 C150 10 118 22 92 44 C72 61 52 70 26 72" stroke="#6B4A2B" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M120 26 C112 40 112 52 116 64" stroke="#6B4A2B" stroke-width="2.5" fill="none"/>
+    <path d="M70 58 C66 70 66 80 70 92" stroke="#6B4A2B" stroke-width="2" fill="none"/>
+    <ellipse cx="150" cy="26" rx="16" ry="7" transform="rotate(-24 150 26)" fill="#7E8C3A"/>
+    <ellipse cx="96" cy="30" rx="15" ry="6.5" transform="rotate(28 96 30)" fill="#97A24A"/>
+    <ellipse cx="48" cy="58" rx="14" ry="6" transform="rotate(-16 48 58)" fill="#7E8C3A"/>
+    <ellipse cx="134" cy="52" rx="13" ry="6" transform="rotate(60 134 52)" fill="#97A24A"/>
+    <circle cx="117" cy="76" r="14" fill="#C2402E"/><circle cx="111" cy="70" r="4" fill="#fff" opacity=".35"/>
+    <circle cx="71" cy="103" r="12" fill="#B33526"/><circle cx="66" cy="98" r="3.4" fill="#fff" opacity=".35"/>
+  </svg>`;
+}
+
 function buildFx(){
   const layer = document.getElementById("fxLayer");
   if(!layer) return;
   const t = THEMES[currentTheme()];
   if(!t){ layer.innerHTML = ""; return; }
+  const id = currentTheme();
   let html = "";
-  if(t.fog){
-    html += `<div class="fog" style="top:12vh;--d:28s"></div>`;
-    html += `<div class="fog" style="top:48vh;--d:34s;--delay:-12s"></div>`;
-    html += `<div class="fog" style="top:76vh;--d:24s;--delay:-6s"></div>`;
+  if(id === "nebelwald"){
+    // Hintere Tannen, Nebel, vordere Tannen: so wirkt es wie Tiefe statt Filter
+    html += `<div class="scene" style="height:46vh;opacity:.9">${pineLayer("#1B2E23", 16, 120, 210, 300)}</div>`;
+    html += `<div class="fog" style="top:52vh;--d:30s"></div>`;
+    html += `<div class="scene" style="height:34vh">${pineLayer("#122019", 11, 150, 260, 300)}</div>`;
+    html += `<div class="fog" style="top:70vh;--d:24s;--delay:-8s"></div>`;
+    html += `<div class="scene" style="height:20vh">${pineLayer("#0A130E", 7, 170, 290, 300)}</div>`;
+    html += `<div class="fog" style="top:14vh;--d:36s;--delay:-14s;opacity:.7"></div>`;
+  }
+  if(id === "kuerbis"){
+    // Links ein geschnitzter Kürbis mit flackerndem Licht, rechts ein kleiner
+    html += `<div class="scene" style="width:170px;height:110px;right:auto;opacity:.9"><svg viewBox="0 0 170 110">
+      ${pumpkinSvg(52, 68, 40, true)}${pumpkinSvg(124, 86, 22, false)}</svg></div>`;
+    html += `<div class="scene" style="width:110px;height:90px;left:auto;opacity:.8"><svg viewBox="0 0 110 90">
+      ${pumpkinSvg(66, 58, 32, false)}</svg></div>`;
+    for(let i = 0; i < 9; i++){
+      html += `<div class="ember" style="left:${rand(2, 98).toFixed(1)}%;--d:${rand(7, 13).toFixed(1)}s;--delay:${(-rand(0, 13)).toFixed(1)}s;--sway:${rand(-40, 40).toFixed(0)}px"></div>`;
+    }
+  }
+  if(id === "apfel"){
+    html += `<div class="branch">${appleBranchSvg()}</div>`;
   }
   for(let i = 0; i < t.leafCount; i++) html += leafHtml(t.leaves, i);
   layer.innerHTML = html;
@@ -1088,11 +1318,12 @@ function buildFx(){
 
 function renderThemeOptions(){
   const active = currentTheme();
+  Object.keys(THEMES).forEach(ensureThemeFont);
   const demo = [["p1", "Tammo", 248], ["p2", "Joshua", 197], ["p3", "Lennart", 156]];
   document.getElementById("themeOptions").innerHTML = Object.entries(THEMES).map(([id, t])=>{
     const cards = demo.map(([pid, name, pts])=>{
       const nameColor = t.lightText ? PLAYER_TEXT_ON_LIGHT[pid] : PLAYER_COLORS[pid];
-      return `<div class="t-card" style="background:${t.panel};border-color:${t.line};border-left-color:${PLAYER_COLORS[pid]}">
+      return `<div class="t-card${pid === "p1" ? " t-lead" : ""}" style="background:${t.cardBg};border-color:${pid === "p1" ? "#E8B93F" : t.line};border-left-color:${PLAYER_COLORS[pid]}">
         <div class="n" style="color:${nameColor}">${name}</div>
         <div class="s" style="color:${t.text}">${pts}</div>
       </div>`;
@@ -1101,7 +1332,7 @@ function renderThemeOptions(){
     for(let i = 0; i < 6; i++) fx += leafHtml(t.leaves, i, { size: 14, minDur: 6, maxDur: 10, minOp: .5, maxOp: .85 });
     if(t.fog) fx += `<div class="fog" style="top:30px;height:120px;width:200%;left:-50%;--d:9s"></div>`;
     return `<button class="theme-opt${id === active ? " selected" : ""}" onclick="chooseTheme('${id}')"
-        style="background:${t.bg};color:${t.text};--sel:${t.sel};border-color:${id === active ? t.sel : t.line}">
+        style="background:${t.tileBg};color:${t.text};--sel:${t.sel};border-color:${id === active ? t.sel : t.line};--tfont:${t.family};--tweight:${t.weight}">
       <div class="t-fx">${fx}</div>
       <span class="t-check" style="background:${t.sel};color:${t.lightText ? "#fff" : t.bg}">Aktiv</span>
       <div class="t-name">${t.name}</div>
@@ -1129,7 +1360,7 @@ function closeThemePicker(){
 
 function applyTheme(id){
   const root = document.documentElement;
-  if(THEMES[id]) root.setAttribute("data-theme", id);
+  if(THEMES[id]){ ensureThemeFont(id); root.setAttribute("data-theme", id); }
   else root.removeAttribute("data-theme");
   const meta = document.querySelector('meta[name="theme-color"]');
   if(meta) meta.setAttribute("content", THEMES[id] ? THEMES[id].bg : DEFAULT_THEME_COLOR);
