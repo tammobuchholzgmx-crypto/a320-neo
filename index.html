@@ -6,6 +6,19 @@
 <title>Scoreboard</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#16171A">
+<script>
+  // Theme so früh wie möglich setzen, damit nichts kurz im Standard-Look aufblitzt.
+  (function(){
+    try {
+      var t = localStorage.getItem("sb_theme_v1");
+      var bg = { kuerbis:"#1A1108", nebelwald:"#0E1811", apfel:"#F7EEDF" };
+      if(t && bg[t]){
+        document.documentElement.setAttribute("data-theme", t);
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", bg[t]);
+      }
+    } catch(e){}
+  })();
+</script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,7 +40,117 @@
     --gold:#E8B93F;
     --green:#3FBF7F;
     --red:#E2584D;
+    --accent:#4C6FFF;
+    --grid:#2A2D34;
+    --glow:rgba(255,255,255,0.035);
   }
+
+  /* ===== Herbst-Themes =====
+     Nur die Umgebung ändert sich. Die Spielerfarben (PLAYER_COLORS im Script)
+     bleiben in jedem Theme gleich: Tammo blau, Joshua gelb, Lennart grün. */
+  html[data-theme="kuerbis"]{
+    --bg:#1A1108; --panel:#271A0D; --panel-2:#332312; --line:#4A3119;
+    --text:#FAEEDA; --text-dim:#C8A57A; --accent:#E8792B; --grid:#3A2715;
+    --glow:rgba(232,121,43,0.10);
+  }
+  html[data-theme="nebelwald"]{
+    --bg:#0E1811; --panel:#162319; --panel-2:#1D2D21; --line:#2C4131;
+    --text:#E4EEE2; --text-dim:#9BAF9D; --accent:#6FAE5E; --grid:#233529;
+    --glow:rgba(200,220,200,0.06);
+  }
+  html[data-theme="apfel"]{
+    --bg:#F7EEDF; --panel:#FFFAF2; --panel-2:#F2E4CE; --line:#E0CBA9;
+    --text:#3A2410; --text-dim:#856545; --accent:#C2402E; --grid:#EADBC3;
+    --gold:#B8860B; --green:#23874F; --red:#C0392B;
+    --glow:rgba(194,64,46,0.06);
+  }
+  html[data-theme="apfel"] .modal-overlay{ background:rgba(58,36,16,0.45); }
+
+  /* Hintergrund-Effekte (Blätter, Nebel) liegen hinter dem Inhalt */
+  .fx-layer{ position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+  .wrap{ position:relative; z-index:1; }
+  .leaf{
+    position:absolute; top:-30px; width:var(--s,18px); height:var(--s,18px);
+    opacity:var(--o,.55);
+    animation:leafFall var(--d,14s) linear var(--delay,0s) infinite;
+  }
+  .leaf svg{ width:100%; height:100%; display:block; animation:leafSpin var(--spin,5s) ease-in-out infinite alternate; }
+  @keyframes leafFall{
+    0%  { transform:translate3d(0,0,0); }
+    25% { transform:translate3d(var(--sway,40px),27vh,0); }
+    50% { transform:translate3d(calc(var(--sway,40px) * -0.5),55vh,0); }
+    75% { transform:translate3d(var(--sway,40px),82vh,0); }
+    100%{ transform:translate3d(0,112vh,0); }
+  }
+  @keyframes leafSpin{ from{ transform:rotate(-35deg) scaleX(1); } to{ transform:rotate(200deg) scaleX(.6); } }
+  .fog{
+    position:absolute; width:140vw; height:38vh; left:-20vw; border-radius:50%;
+    background:radial-gradient(closest-side, rgba(210,228,212,.10), transparent);
+    animation:fogDrift var(--d,26s) ease-in-out var(--delay,0s) infinite alternate;
+  }
+  @keyframes fogDrift{ from{ transform:translateX(-18vw); } to{ transform:translateX(18vw); } }
+
+  /* Kürbis: Platz 1 glüht */
+  @keyframes pumpkinGlow{
+    0%,100%{ box-shadow:0 0 0 0 rgba(232,121,43,0); }
+    50%    { box-shadow:0 0 22px 2px rgba(232,121,43,.28); }
+  }
+  html[data-theme="kuerbis"] .card.rank-1{ animation:pumpkinGlow 3.2s ease-in-out infinite; }
+  /* Apfelernte: Karten schaukeln ganz leicht */
+  @keyframes cardSway{ 0%,100%{ transform:rotate(-.5deg); } 50%{ transform:rotate(.5deg); } }
+  html[data-theme="apfel"] .card{ animation:cardSway 5s ease-in-out infinite; }
+  html[data-theme="apfel"] .card:nth-child(2){ animation-delay:-1.6s; }
+  html[data-theme="apfel"] .card:nth-child(3){ animation-delay:-3.2s; }
+  /* Nebelwald: Karten tauchen sanft aus dem Nebel auf */
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  html[data-theme="nebelwald"] section, html[data-theme="nebelwald"] .board{ animation:fadeUp .7s ease-out both; }
+  html[data-theme] .card.rank-1.flash{ animation:leaderFlash 0.9s ease-out; }
+
+  @media (prefers-reduced-motion: reduce){
+    .fx-layer{ display:none; }
+    html[data-theme] .card, html[data-theme] section{ animation:none !important; }
+  }
+
+  /* Theme-Auswahl */
+  .theme-btn{ color:var(--text-dim); display:inline-flex; align-items:center; }
+  .theme-overlay{
+    position:fixed; inset:0; z-index:250; background:var(--bg);
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    display:none; padding:calc(24px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));
+  }
+  .theme-overlay.show{ display:block; animation:fadeUp .35s ease-out; }
+  .theme-inner{ max-width:520px; margin:0 auto; position:relative; }
+  .theme-title{ font-family:'Archivo',sans-serif; font-weight:800; font-size:24px; margin:0 0 6px; }
+  .theme-sub{ font-size:14px; color:var(--text-dim); margin:0 0 20px; line-height:1.45; }
+  .theme-close{ position:absolute; top:-4px; right:-4px; background:none; border:none; color:var(--text-dim); font-size:26px; cursor:pointer; padding:4px 8px; line-height:1; }
+  .theme-options{ display:grid; gap:14px; }
+  .theme-opt{
+    position:relative; overflow:hidden; text-align:left; cursor:pointer;
+    border-radius:16px; padding:16px; border:2px solid transparent;
+    font-family:'Inter'; transition:transform .15s;
+  }
+  .theme-opt:active{ transform:scale(.985); }
+  .theme-opt.selected{ border-color:var(--sel,#fff); }
+  .theme-opt .t-name{ font-family:'Archivo',sans-serif; font-weight:800; font-size:19px; margin-bottom:2px; position:relative; z-index:2; }
+  .theme-opt .t-desc{ font-size:13px; margin-bottom:14px; position:relative; z-index:2; }
+  .theme-opt .t-check{ position:absolute; top:14px; right:14px; z-index:2; font-size:12px; font-weight:600; padding:4px 9px; border-radius:20px; display:none; }
+  .theme-opt.selected .t-check{ display:block; }
+  .t-board{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; position:relative; z-index:2; }
+  .t-card{ border-radius:8px; padding:9px 8px; border:1px solid; border-left-width:3px; }
+  .t-card .n{ font-size:11px; font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .t-card .s{ font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; line-height:1; }
+  .t-fx{ position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:1; }
+  .t-fx .leaf{ --s:14px; animation-name:leafFallSmall; }
+  @keyframes leafFallSmall{
+    0%{ transform:translate3d(0,0,0); } 50%{ transform:translate3d(var(--sway,20px),110px,0); } 100%{ transform:translate3d(0,240px,0); }
+  }
+  .theme-default{
+    width:100%; margin-top:18px; background:var(--panel); border:1px solid var(--line);
+    color:var(--text); border-radius:12px; padding:14px; font-size:14px; font-weight:600;
+    font-family:'Inter'; cursor:pointer;
+  }
+  .theme-default.selected{ border-color:var(--accent); }
+  .theme-hint{ font-size:12px; color:var(--text-dim); text-align:center; margin-top:12px; }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;}
   html{
@@ -35,7 +158,7 @@
   }
   body{
     background:
-      radial-gradient(700px circle at 50% -120px, rgba(255,255,255,0.035), transparent 65%),
+      radial-gradient(700px circle at 50% -120px, var(--glow), transparent 65%),
       var(--bg);
     background-attachment:fixed;
     color:var(--text);
@@ -134,10 +257,10 @@
     font-family:'Inter';
     margin-bottom:12px;
   }
-  .lock-box input:focus{ outline:none; border-color:var(--blue); }
+  .lock-box input:focus{ outline:none; border-color:var(--accent); }
   .lock-box button{
     width:100%;
-    background:var(--blue);
+    background:var(--accent);
     color:#fff;
     border:none;
     border-radius:8px;
@@ -199,7 +322,7 @@
     background:var(--panel-2);
     color:var(--text);
   }
-  .modal-actions button.primary{ background:var(--blue); color:#fff; }
+  .modal-actions button.primary{ background:var(--accent); color:#fff; }
 
   /* Skeleton-Loading */
   .skel{
@@ -255,7 +378,7 @@
     font-family:'Inter';
     cursor:pointer;
   }
-  .wrapped-btn:active{ border-color:var(--blue); }
+  .wrapped-btn:active{ border-color:var(--accent); }
   .month-nav select{
     background:var(--panel);
     border:1px solid var(--line);
@@ -267,7 +390,7 @@
   }
   .archive-notice{
     background:var(--panel);
-    border:1px solid var(--blue);
+    border:1px solid var(--accent);
     border-radius:10px;
     padding:12px 14px;
     margin-bottom:20px;
@@ -279,7 +402,7 @@
     gap:10px;
   }
   .archive-notice button{
-    background:var(--blue);
+    background:var(--accent);
     color:#fff;
     border:none;
     border-radius:6px;
@@ -319,7 +442,7 @@
     font-family:'Inter';
   }
   #who button.active{
-    border-color:var(--blue);
+    border-color:var(--accent);
     background:var(--panel-2);
   }
 
@@ -346,7 +469,7 @@
     cursor:pointer;
   }
   .card.rank-1{border-color:var(--gold);}
-  .card:active{border-color:var(--blue);}
+  .card:active{border-color:var(--accent);}
   .rank-tag{
     font-size:11px;
     color:var(--text-dim);
@@ -417,7 +540,7 @@
     margin-bottom:24px;
     cursor:pointer;
   }
-  section.chart:active{ border-color:var(--blue); }
+  section.chart:active{ border-color:var(--accent); }
   section.chart h2{
     font-size:14px;
     font-weight:600;
@@ -430,7 +553,7 @@
   .chart-expand-hint{
     font-size:11px;
     font-weight:500;
-    color:var(--blue);
+    color:var(--accent);
   }
   section.chart canvas{max-height:220px;}
 
@@ -538,7 +661,7 @@
     font-family:'Inter';
   }
   .spend-form button{
-    background:var(--blue);
+    background:var(--accent);
     color:#fff;
     border:none;
     border-radius:6px;
@@ -588,7 +711,7 @@
     font-weight:500;
     text-align:left;
   }
-  .cat-btn:active{border-color:var(--blue);}
+  .cat-btn:active{border-color:var(--accent);}
   .cat-btn.done{opacity:0.45;cursor:default;}
   .cat-btn.numeric{cursor:default;}
   .cat-btn span:first-child{
@@ -611,7 +734,7 @@
     font-family:'Inter';
   }
   .numeric-input button{
-    background:var(--blue);
+    background:var(--accent);
     color:#fff;
     border:none;
     border-radius:6px;
@@ -708,7 +831,7 @@
     padding:0 4px;
     line-height:1;
   }
-  .edit-btn:hover{color:var(--blue);}
+  .edit-btn:hover{color:var(--accent);}
   .empty{color:var(--text-dim);font-size:13px;padding:16px 0;}
 
   /* Jahres-Heatmap */
@@ -738,6 +861,7 @@
   </div>
 </div>
 
+<div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
 <div class="wrap" id="appWrap" style="display:none">
 
   <header>
@@ -748,6 +872,7 @@
   <div class="ticker" id="ticker"></div>
 
   <div class="month-nav">
+    <button class="notif-btn theme-btn" onclick="openThemePicker(false)" title="Design ändern" aria-label="Design ändern"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L13 13.8l-2.8-2.8Z"/><path d="M10.2 11 7 14.2c-1.9 0-3.4 1.6-3.4 3.4 0 1.2-.6 2.2-1.6 2.8 4.2.6 8.4-.6 8.4-5l1.9-1.9"/></svg></button>
     <button class="notif-btn" id="notifBtn" onclick="toggleNotifications()" title="Benachrichtigungen">🔔</button>
     <button class="wrapped-btn" onclick="openWrappedManually()">Wochen-Wrapped</button>
     <select id="monthSelect" onchange="onMonthSelect()"></select>
@@ -813,6 +938,16 @@
 
 </div>
 <div class="toast" id="toast"></div>
+<div class="theme-overlay" id="themeOverlay" role="dialog" aria-modal="true" aria-labelledby="themeTitle">
+  <div class="theme-inner">
+    <button class="theme-close" id="themeClose" onclick="closeThemePicker()" aria-label="Schließen">×</button>
+    <h2 class="theme-title" id="themeTitle">Neu: Herbst-Designs 🍂</h2>
+    <p class="theme-sub" id="themeSub">Such dir aus, wie dein Scoreboard aussehen soll. Eure Farben bleiben überall gleich.</p>
+    <div class="theme-options" id="themeOptions"></div>
+    <button class="theme-default" id="themeDefaultBtn" onclick="chooseTheme('default')">Beim normalen Design bleiben</button>
+    <div class="theme-hint">Ändern kannst du das jederzeit oben über das Pinsel-Symbol.</div>
+  </div>
+</div>
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
   <div class="modal-box" id="modalBox">
     <button class="modal-close" onclick="closeModal()">×</button>
@@ -875,6 +1010,152 @@ const START_DATE = new Date(2026, 8, 18); // 18.09.2026 (Monat ist 0-indexiert: 
 // (Chart, Karten, Badges, Namens-Auswahl), damit es konsistent bleibt.
 const PLAYER_COLORS = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
 
+/* ---------- Herbst-Themes ----------
+   Jede*r wählt das Design für das eigene Gerät (localStorage). Die
+   Spielerfarben oben bleiben in allen Themes gleich. Nur im hellen
+   Apfelernte-Theme wird für TEXT eine dunklere Stufe desselben Farbtons
+   genutzt, sonst wäre z.B. Joshuas Gelb auf Creme kaum lesbar. Ränder,
+   Linien und Heatmap nutzen weiter exakt die Originalfarbe. */
+const THEME_KEY = "sb_theme_v1";
+const PLAYER_TEXT_ON_LIGHT = { p1: "#3550D6", p2: "#946400", p3: "#1F8A55" };
+const LEAF_SVG = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c.6 1.7 1.6 2.8 3.2 3.1-.4 1-.3 1.8.3 2.4 1.1-.6 2.3-.6 3.5 0-.6 1.4-.5 2.6.4 3.6-1.3.4-2.1 1.2-2.3 2.6-1.3-.6-2.5-.6-3.6.2l.2 3.6-.9.1-.6 4.4h-.4l-.6-4.4-.9-.1.2-3.6c-1.1-.8-2.3-.8-3.6-.2-.2-1.4-1-2.2-2.3-2.6.9-1 1-2.2.4-3.6 1.2-.6 2.4-.6 3.5 0 .6-.6.7-1.4.3-2.4C10.4 4.8 11.4 3.7 12 2Z"/></svg>';
+
+const THEMES = {
+  kuerbis: {
+    name: "Kürbis-Glow", desc: "Orange, warmes Braun, fallende Blätter. Platz 1 glüht.",
+    bg: "#1A1108", panel: "#271A0D", line: "#4A3119", text: "#FAEEDA", dim: "#C8A57A", sel: "#E8792B",
+    leaves: ["#E8792B", "#C2491D", "#E8A33A", "#8A3A12"], leafCount: 14, lightText: false,
+  },
+  nebelwald: {
+    name: "Nebelwald", desc: "Tannengrün, Grau, wabernder Nebel, ruhig und clean.",
+    bg: "#0E1811", panel: "#162319", line: "#2C4131", text: "#E4EEE2", dim: "#9BAF9D", sel: "#6FAE5E",
+    leaves: ["#6E8B5E", "#8A8F7A", "#A08A4E"], leafCount: 7, fog: true, lightText: false,
+  },
+  apfel: {
+    name: "Apfelernte", desc: "Creme, Apfelrot, gemütlich schaukelnde Karten.",
+    bg: "#F7EEDF", panel: "#FFFAF2", line: "#E0CBA9", text: "#3A2410", dim: "#856545", sel: "#C2402E",
+    leaves: ["#C2402E", "#E07A2E", "#D9A23A", "#8E2A1E"], leafCount: 12, lightText: true,
+  },
+};
+const DEFAULT_THEME_COLOR = "#16171A";
+
+function currentTheme(){
+  const t = document.documentElement.getAttribute("data-theme");
+  return THEMES[t] ? t : "default";
+}
+
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#9B9EA6";
+}
+
+function playerTextColor(id){
+  const t = THEMES[currentTheme()];
+  if(t && t.lightText) return PLAYER_TEXT_ON_LIGHT[id] || "var(--text)";
+  return PLAYER_COLORS[id] || "var(--text)";
+}
+
+function rand(a, b){ return a + Math.random() * (b - a); }
+
+function leafHtml(colors, i, opts){
+  const o = opts || {};
+  const style = [
+    `left:${rand(-2, 98).toFixed(1)}%`,
+    `color:${colors[i % colors.length]}`,
+    `--s:${(o.size || rand(14, 26)).toFixed(0)}px`,
+    `--d:${rand(o.minDur || 11, o.maxDur || 20).toFixed(1)}s`,
+    `--delay:${(-rand(0, 20)).toFixed(1)}s`,
+    `--sway:${rand(-60, 60).toFixed(0)}px`,
+    `--spin:${rand(3, 7).toFixed(1)}s`,
+    `--o:${rand(o.minOp || .35, o.maxOp || .7).toFixed(2)}`,
+  ].join(";");
+  return `<div class="leaf" style="${style}">${LEAF_SVG}</div>`;
+}
+
+function buildFx(){
+  const layer = document.getElementById("fxLayer");
+  if(!layer) return;
+  const t = THEMES[currentTheme()];
+  if(!t){ layer.innerHTML = ""; return; }
+  let html = "";
+  if(t.fog){
+    html += `<div class="fog" style="top:12vh;--d:28s"></div>`;
+    html += `<div class="fog" style="top:48vh;--d:34s;--delay:-12s"></div>`;
+    html += `<div class="fog" style="top:76vh;--d:24s;--delay:-6s"></div>`;
+  }
+  for(let i = 0; i < t.leafCount; i++) html += leafHtml(t.leaves, i);
+  layer.innerHTML = html;
+}
+
+function renderThemeOptions(){
+  const active = currentTheme();
+  const demo = [["p1", "Tammo", 248], ["p2", "Joshua", 197], ["p3", "Lennart", 156]];
+  document.getElementById("themeOptions").innerHTML = Object.entries(THEMES).map(([id, t])=>{
+    const cards = demo.map(([pid, name, pts])=>{
+      const nameColor = t.lightText ? PLAYER_TEXT_ON_LIGHT[pid] : PLAYER_COLORS[pid];
+      return `<div class="t-card" style="background:${t.panel};border-color:${t.line};border-left-color:${PLAYER_COLORS[pid]}">
+        <div class="n" style="color:${nameColor}">${name}</div>
+        <div class="s" style="color:${t.text}">${pts}</div>
+      </div>`;
+    }).join("");
+    let fx = "";
+    for(let i = 0; i < 6; i++) fx += leafHtml(t.leaves, i, { size: 14, minDur: 6, maxDur: 10, minOp: .5, maxOp: .85 });
+    if(t.fog) fx += `<div class="fog" style="top:30px;height:120px;width:200%;left:-50%;--d:9s"></div>`;
+    return `<button class="theme-opt${id === active ? " selected" : ""}" onclick="chooseTheme('${id}')"
+        style="background:${t.bg};color:${t.text};--sel:${t.sel};border-color:${id === active ? t.sel : t.line}">
+      <div class="t-fx">${fx}</div>
+      <span class="t-check" style="background:${t.sel};color:${t.lightText ? "#fff" : t.bg}">Aktiv</span>
+      <div class="t-name">${t.name}</div>
+      <div class="t-desc" style="color:${t.dim}">${t.desc}</div>
+      <div class="t-board">${cards}</div>
+    </button>`;
+  }).join("");
+  document.getElementById("themeDefaultBtn").classList.toggle("selected", active === "default");
+}
+
+function openThemePicker(firstRun){
+  document.getElementById("themeTitle").textContent = firstRun ? "Neu: Herbst-Designs 🍂" : "Design wählen";
+  document.getElementById("themeSub").textContent = firstRun
+    ? "Such dir aus, wie dein Scoreboard aussehen soll. Eure Farben bleiben überall gleich."
+    : "Gilt nur für dieses Gerät. Eure Farben bleiben überall gleich.";
+  document.getElementById("themeDefaultBtn").textContent = firstRun ? "Beim normalen Design bleiben" : "Normales Design";
+  document.getElementById("themeClose").style.display = firstRun ? "none" : "";
+  renderThemeOptions();
+  document.getElementById("themeOverlay").classList.add("show");
+}
+
+function closeThemePicker(){
+  document.getElementById("themeOverlay").classList.remove("show");
+}
+
+function applyTheme(id){
+  const root = document.documentElement;
+  if(THEMES[id]) root.setAttribute("data-theme", id);
+  else root.removeAttribute("data-theme");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute("content", THEMES[id] ? THEMES[id].bg : DEFAULT_THEME_COLOR);
+  buildFx();
+}
+
+function chooseTheme(id){
+  try { localStorage.setItem(THEME_KEY, id); } catch(e){}
+  applyTheme(id);
+  closeThemePicker();
+  // Offenes Popup schließen, sonst behalten dessen Charts die alten Farben
+  const mo = document.getElementById("modalOverlay");
+  if(mo && mo.classList.contains("show") && typeof closeModal === "function") closeModal();
+  // Alles neu zeichnen, damit Charts & Namensfarben das neue Theme übernehmen
+  if(sb){
+    renderWho();
+    if(allEntries.length) applyView(); else renderCats();
+  }
+}
+
+function maybeShowThemeOnboarding(){
+  let seen = null;
+  try { seen = localStorage.getItem(THEME_KEY); } catch(e){}
+  if(!seen) openThemePicker(true);
+}
+
 // Kleines, einheitliches Icon-Set (inline SVG) statt Emojis — sieht auf jedem
 // Gerät/Betriebssystem gleich aus, statt je nach Emoji-Schriftart anders.
 const ICONS = {
@@ -913,6 +1194,8 @@ async function sha256Hex(text){
 function showApp(){
   document.getElementById("lockOverlay").style.display = "none";
   document.getElementById("appWrap").style.display = "";
+  buildFx();
+  maybeShowThemeOnboarding();
   init();
 }
 
@@ -1370,9 +1653,9 @@ function renderWrapped(w){
     <canvas id="wrappedGapChart" style="max-height:170px;"></canvas>
   `, true);
 
-  const legend = { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12, font: { size: 12 }, padding: 12 } };
-  const tickColor = { color: "#9B9EA6", font: { size: 11 } };
-  const gridColor = { color: "#2A2D34" };
+  const legend = { position: "bottom", labels: { color: cssVar("--text"), boxWidth: 12, font: { size: 12 }, padding: 12 } };
+  const tickColor = { color: cssVar("--text-dim"), font: { size: 11 } };
+  const gridColor = { color: cssVar("--grid") };
 
   wrappedCatChartInstance = new Chart(document.getElementById("wrappedCatChart"), {
     type: "bar",
@@ -1499,7 +1782,7 @@ function openPlayerBreakdown(playerId){
       datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: palette }]
     },
     options: {
-      plugins: { legend: { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12, font: {size: 11} } } }
+      plugins: { legend: { position: "bottom", labels: { color: cssVar("--text"), boxWidth: 12, font: {size: 11} } } }
     }
   });
 }
@@ -1557,7 +1840,7 @@ function renderWho(){
     if(p.id === currentPlayer){
       btn.classList.add("active");
       btn.style.borderColor = PLAYER_COLORS[p.id];
-      btn.style.color = PLAYER_COLORS[p.id];
+      btn.style.color = playerTextColor(p.id);
     }
     btn.onclick = ()=>{
       currentPlayer = p.id;
@@ -1975,7 +2258,7 @@ function renderBoard(entries, isLive, viewedDate){
       extraHtml = todayHtml + avgHtml + streakHtml + gapHtml + compareHtml;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}${arrowHtml}</div>
-        <div class="p-name" style="color:${PLAYER_COLORS[p.id] || "var(--text)"}">${p.name}</div>
+        <div class="p-name" style="color:${playerTextColor(p.id)}">${p.name}</div>
         <div class="p-score"><span class="num" id="score-${p.id}">0</span><span class="unit">Pkt</span></div>
         ${extraHtml}
       `;
@@ -1984,7 +2267,7 @@ function renderBoard(entries, isLive, viewedDate){
       const avgHtml = `<div class="p-meta">Ø ${p.avg} Pkt/Tag</div>`;
       card.innerHTML = `
         <div class="rank-tag">${i===0 ? "1. Platz" : (i+1)+". Platz"}</div>
-        <div class="p-name" style="color:${PLAYER_COLORS[p.id] || "var(--text)"}">${p.name}</div>
+        <div class="p-name" style="color:${playerTextColor(p.id)}">${p.name}</div>
         <div class="p-score"><span class="num" id="score-${p.id}">0</span><span class="unit">Pkt</span></div>
         ${winnerTag}
         ${avgHtml}
@@ -2047,7 +2330,7 @@ function buildChartDatasets(entries, viewedDate, isLive){
     return {
       label: p.name,
       data: cumulative,
-      borderColor: PLAYER_COLORS[p.id] || "#9B9EA6",
+      borderColor: PLAYER_COLORS[p.id] || cssVar("--text-dim"),
       backgroundColor: "transparent",
       tension: 0.25,
       pointRadius: 2,
@@ -2067,10 +2350,10 @@ function renderChart(entries, viewedDate, isLive){
     data: { labels, datasets },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: "#EDEDEC", font: { size: 11 }, boxWidth: 10 } } },
+      plugins: { legend: { labels: { color: cssVar("--text"), font: { size: 11 }, boxWidth: 10 } } },
       scales: {
-        x: { ticks: { color: "#9B9EA6", maxTicksLimit: 6 }, grid: { color: "#2A2D34" } },
-        y: { ticks: { color: "#9B9EA6" }, grid: { color: "#2A2D34" } },
+        x: { ticks: { color: cssVar("--text-dim"), maxTicksLimit: 6 }, grid: { color: cssVar("--grid") } },
+        y: { ticks: { color: cssVar("--text-dim") }, grid: { color: cssVar("--grid") } },
       }
     }
   });
@@ -2122,7 +2405,7 @@ function buildWeekdayChart(entries){
   const hasData = totals.some(v=> v > 0);
   return {
     labels: weekdayLabels,
-    datasets: [{ label: "Punkte", data: totals, backgroundColor: "#4C6FFF" }],
+    datasets: [{ label: "Punkte", data: totals, backgroundColor: cssVar("--accent") }],
     insight: hasData ? `${weekdayLabels[best]} läuft's am besten (${totals[best]} Pkt), ${weekdayLabels[worst]} am schwächsten (${totals[worst]} Pkt).` : ""
   };
 }
@@ -2155,9 +2438,9 @@ function openChartModal(){
 
   // Etwas größere Legenden-Schrift & Abstände — leichter mit dem Finger zu treffen,
   // falls jemand einzelne Personen in der Legende ein-/ausblenden will.
-  const legend = { position: "bottom", labels: { color: "#EDEDEC", boxWidth: 12, font: { size: 12 }, padding: 12 } };
-  const tickColor = { color: "#9B9EA6", font: { size: 11 } };
-  const gridColor = { color: "#2A2D34" };
+  const legend = { position: "bottom", labels: { color: cssVar("--text"), boxWidth: 12, font: { size: 12 }, padding: 12 } };
+  const tickColor = { color: cssVar("--text-dim"), font: { size: 11 } };
+  const gridColor = { color: cssVar("--grid") };
 
   bigChartInstance = new Chart(document.getElementById("bigChart"), {
     type: "line",
@@ -2245,7 +2528,7 @@ function renderFeed(entries){
       // Der Bonus wird automatisch berechnet — dort gibt es nichts zu löschen/bearbeiten.
       const delBtn = isBonus ? "" : `<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button>`;
       return `<div class="feed-item">
-        <div><span class="feed-name" style="color:${PLAYER_COLORS[e.player_id] || 'var(--text)'}">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
+        <div><span class="feed-name" style="color:${playerTextColor(e.player_id)}">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
         <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}${delBtn}</div>
       </div>`;
     }).join("");
@@ -2349,7 +2632,7 @@ function renderHeatmap(){
 
   document.getElementById("heatTabs").innerHTML = PLAYERS.map(p=>{
     const on = p.id === heatPlayer;
-    return `<button onclick="selectHeatPlayer('${p.id}')" style="${on ? `border-color:${PLAYER_COLORS[p.id]};color:${PLAYER_COLORS[p.id]};` : ""}">${p.name}</button>`;
+    return `<button onclick="selectHeatPlayer('${p.id}')" style="${on ? `border-color:${PLAYER_COLORS[p.id]};color:${playerTextColor(p.id)};` : ""}">${p.name}</button>`;
   }).join("");
 
   const perDay = {};
