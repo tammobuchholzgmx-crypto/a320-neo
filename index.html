@@ -1130,7 +1130,8 @@ const CATEGORIES = [
   { id: "journaln",               label: "Journaln",                                    type: "flat",    points: 20, limit: "day" },
   { id: "schritte",                label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
   { id: "lesen",                    label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
-  { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity },
+  // Entfernt: nur noch für bestehende Einträge (Anzeige/Charts), nicht mehr eintragbar.
+  { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity, hidden: true },
   { id: "screentime_u2",             label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 180, limit: "week-monday", group: "screentime_tier" },
   { id: "screentime_u3",             label: "Social-Media-Wochenschnitt unter 3h",          type: "flat",  points: 100, limit: "week-monday", group: "screentime_tier" },
   { id: "screentime_u4",             label: "Social-Media-Wochenschnitt unter 4h",          type: "flat",  points: 50,  limit: "week-monday", group: "screentime_tier" },
@@ -2149,6 +2150,7 @@ function renderCats(){
   el.innerHTML = "";
   CATEGORIES.forEach(c=>{
     if(c.hidden) return;
+    if(c.limit === "week-monday" && !isMonday()) return; // Wochen-Kategorien nur montags anzeigen
     if(c.type === "flat"){
       const lock = categoryLockState(c);
       const btn = document.createElement("button");
