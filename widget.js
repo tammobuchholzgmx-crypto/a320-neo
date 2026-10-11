@@ -2,7 +2,10 @@
 // dann Widget (mittel) auf den Home-Screen legen -> Skript auswählen.
 const URL_BASE = "https://dswuwwmkrjwhyzbnyvvi.supabase.co";
 const KEY = "sb_publishable_tGL-gO7-zsiQw5jwyzeUEA_ef_Cduao";
+// Tipp aufs Widget: Standard öffnet Safari. Wenn du die Kurzbefehl-Variante
+// (siehe Anleitung) eingerichtet hast, nimm stattdessen die zweite Zeile:
 const APP_URL = "https://tammojb.com";
+// const APP_URL = "shortcuts://run-shortcut?name=Scoreboard";
 const PLAYERS = [
   { id: "p1", name: "Tammo",   color: "#4C6FFF" },
   { id: "p2", name: "Joshua",  color: "#E8B93F" },
@@ -35,6 +38,7 @@ const max = Math.max(1, ...ranked.map(p => total[p.id]));
 const w = new ListWidget();
 w.backgroundColor = new Color("#16171A");
 w.url = APP_URL;
+w.refreshAfterDate = new Date(Date.now() + 10 * 60 * 1000); // iOS-Wunsch: in ca. 10 Min neu laden
 w.setPadding(14, 14, 12, 14);
 
 const head = w.addStack();
