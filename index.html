@@ -724,12 +724,6 @@
   .heat-sum{ font-size:12px; color:var(--text-dim); margin-top:8px; }
   .heat-legend{ display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-dim); margin-top:6px; }
   .heat-legend i{ width:11px; height:11px; border-radius:3px; display:inline-block; }
-  section.backup{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:24px; }
-  section.backup h2{ font-size:14px; font-weight:600; margin:0 0 6px; color:var(--text-dim); }
-  section.backup p{ font-size:12px; color:var(--text-dim); margin:0 0 12px; line-height:1.5; }
-  .backup-btns{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-  .backup-btns button{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px 4px; font-size:12px; font-family:'Inter'; cursor:pointer; }
-  .backup-btns button:active{ border-color:var(--blue); }
 </style>
 </head>
 <body>
@@ -815,17 +809,6 @@
     </div>
     <div class="heat-sum" id="heatSum"></div>
     <div class="heat-legend" id="heatLegend"></div>
-  </section>
-
-  <section class="backup">
-    <h2>Backup</h2>
-    <p>Lade regelmäßig ein Backup herunter, falls mal Daten verloren gehen. Beim Einspielen werden nur fehlende Einträge ergänzt, nichts wird überschrieben oder gelöscht.</p>
-    <div class="backup-btns">
-      <button onclick="downloadBackupJson()">Backup (JSON)</button>
-      <button onclick="downloadBackupCsv()">Tabelle (CSV)</button>
-      <button onclick="document.getElementById('backupFile').click()">Einspielen</button>
-    </div>
-    <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackupFile(this)">
   </section>
 
 </div>
@@ -2409,53 +2392,6 @@ function renderHeatmap(){
   document.getElementById("heatLegend").innerHTML = `weniger ${[0,1,2,3,4].map(l=> `<i style="background:${l ? hexToRgba(color, alphas[l]) : "var(--panel-2)"}"></i>`).join("")} mehr`;
   const sc = document.getElementById("heatScroll");
   if(sc) sc.scrollLeft = sc.scrollWidth; // heute rechts sichtbar
-}
-
-// ---------- Backup ----------
-function downloadBlob(name, text, type){
-  const url = URL.createObjectURL(new Blob([text], {type}));
-  const a = document.createElement("a");
-  a.href = url; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=> URL.revokeObjectURL(url), 2000);
-}
-function backupStamp(){ return dayKeyLocal(new Date()); }
-async function fetchAllForBackup(){
-  const [e, w] = await Promise.all([
-    sb.from("entries").select("*").order("created_at", {ascending:true}),
-    sb.from("wallet_spends").select("*").order("created_at", {ascending:true}),
-  ]);
-  if(e.error || w.error){ alert("Backup fehlgeschlagen: " + ((e.error||w.error).message)); return null; }
-  return { entries: e.data||[], wallet_spends: w.data||[] };
-}
-async function downloadBackupJson(){
-  const data = await fetchAllForBackup(); if(!data) return;
-  const payload = { app:"scoreboard", version:1, exported_at:new Date().toISOString(), ...data };
-  downloadBlob(`scoreboard-backup-${backupStamp()}.json`, JSON.stringify(payload, null, 2), "application/json");
-  showToast(`Backup: ${data.entries.length} Einträge`);
-}
-async function downloadBackupCsv(){
-  const data = await fetchAllForBackup(); if(!data) return;
-  const name = id=> (PLAYERS.find(p=>p.id===id)||{name:id}).name;
-  const esc = v=> `"${String(v ?? "").replace(/"/g,'""')}"`;
-  const lines = ["Datum;Person;Kategorie;Punkte;Wert"];
-  for(const e of data.entries) lines.push([new Date(e.created_at).toLocaleString("de-DE"), name(e.player_id), e.category, e.points, e.raw_value ?? ""].map(esc).join(";"));
-  downloadBlob(`scoreboard-${backupStamp()}.csv`, "﻿"+lines.join("\n"), "text/csv;charset=utf-8");
-}
-async function importBackupFile(input){
-  const file = input.files && input.files[0];
-  input.value = "";
-  if(!file) return;
-  let data;
-  try { data = JSON.parse(await file.text()); } catch(err){ alert("Die Datei ist kein gültiges Backup."); return; }
-  if(!data || data.app !== "scoreboard" || !Array.isArray(data.entries)){ alert("Das ist kein Scoreboard-Backup."); return; }
-  const wallet = Array.isArray(data.wallet_spends) ? data.wallet_spends : [];
-  if(!confirm(`Backup einspielen?\n${data.entries.length} Einträge, ${wallet.length} Guthaben-Buchungen.\nNur fehlende Einträge werden ergänzt.`)) return;
-  const eRes = data.entries.length ? await sb.from("entries").upsert(data.entries, {onConflict:"id", ignoreDuplicates:true}) : {};
-  const wRes = wallet.length ? await sb.from("wallet_spends").upsert(wallet, {onConflict:"id", ignoreDuplicates:true}) : {};
-  if(eRes.error || wRes.error){ alert("Einspielen fehlgeschlagen: " + ((eRes.error||wRes.error).message)); return; }
-  showToast("Backup eingespielt");
-  await loadAndRender();
 }
 
 function subscribeRealtime(){
