@@ -1082,14 +1082,6 @@
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
   </div>
 
-  <section class="rings" id="ringsSection" style="display:none">
-    <h2>Heute · Vielfalt</h2>
-    <div class="rings-body">
-      <svg id="ringsSvg" viewBox="0 0 140 140" width="132" height="132" aria-hidden="true"></svg>
-      <div class="rings-legend" id="ringsLegend"></div>
-    </div>
-  </section>
-
   <section class="chart" onclick="openChartModal()">
     <h2>
       <span id="chartTitle">Punkteverlauf</span>
@@ -3008,7 +3000,6 @@ function applyView(){
   renderCats();
   renderWallet();
   renderHeatmap();
-  renderRings(isLive);
   updateTicker();
   if(isLive){
     maybeCelebrateMonthWin();
