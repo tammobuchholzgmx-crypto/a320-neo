@@ -1829,6 +1829,7 @@ function buildWrapped(weekStart){
   const dayLabels = ["Mo","Di","Mi","Do","Fr","Sa","So"];
   const cumulative = {}; PLAYERS.forEach(p=> cumulative[p.id] = 0);
   const gapSeries = [];
+  const gapSeries23 = [];
   let bestGroupDay = null, bestGroupPts = -1;
   let biggestJump = { player: null, pts: 0, dayLabel: null };
 
@@ -1849,6 +1850,7 @@ function buildWrapped(weekStart){
 
     const sortedNow = PLAYERS.map(p=> ({ id: p.id, pts: cumulative[p.id] })).sort((a,b)=> b.pts - a.pts);
     gapSeries.push(sortedNow[0].pts - sortedNow[1].pts);
+    gapSeries23.push(sortedNow[2] ? sortedNow[1].pts - sortedNow[2].pts : 0);
   }
 
   const totals = {}; PLAYERS.forEach(p=> totals[p.id] = cumulative[p.id]);
@@ -1860,7 +1862,7 @@ function buildWrapped(weekStart){
   const prevTotal = prevWeekEntries.reduce((s,e)=> s+e.points, 0);
   const change = prevTotal > 0 ? Math.round(((thisTotal - prevTotal) / prevTotal) * 100) : null;
 
-  return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, dayLabels };
+  return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, gapSeries23, dayLabels };
 }
 
 function renderWrapped(w){
@@ -1888,7 +1890,7 @@ function renderWrapped(w){
     <h3 style="margin-top:20px;">Punkte pro Wochentag</h3>
     <canvas id="wrappedWeekChart" style="max-height:170px;"></canvas>
 
-    <h3 style="margin-top:20px;">Vorsprung Platz 1 vor Platz 2</h3>
+    <h3 style="margin-top:20px;">Abstand zwischen den Plätzen</h3>
     <canvas id="wrappedGapChart" style="max-height:170px;"></canvas>
   `, true);
 
@@ -1923,11 +1925,14 @@ function renderWrapped(w){
     type: "line",
     data: {
       labels: w.dayLabels,
-      datasets: [{ label: "Vorsprung (Pkt)", data: w.gapSeries, borderColor: "#E8B93F", backgroundColor: "rgba(232,185,63,0.15)", fill: true, tension: 0.3, pointRadius: 3 }]
+      datasets: [
+        { label: "Platz 1 vor 2", data: w.gapSeries, borderColor: "#E8B93F", backgroundColor: "rgba(232,185,63,0.15)", fill: true, tension: 0.3, pointRadius: 3 },
+        { label: "Platz 2 vor 3", data: w.gapSeries23, borderColor: "#4C6FFF", backgroundColor: "rgba(76,111,255,0.12)", fill: true, tension: 0.3, pointRadius: 3 }
+      ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: { legend },
       scales: { x: { ticks: tickColor, grid: gridColor }, y: { ticks: tickColor, grid: gridColor, beginAtZero: true } }
     }
   });
