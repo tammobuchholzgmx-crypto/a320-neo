@@ -517,6 +517,7 @@
   /* Month archive nav */
   .month-nav{
     display:flex;
+    flex-wrap:wrap;
     justify-content:flex-end;
     gap:8px;
     margin-bottom:18px;
@@ -845,9 +846,12 @@
   .diversity-hint strong{ color:var(--gold); font-weight:600; }
   .cats{
     display:grid;
-    grid-template-columns:minmax(0, 1fr);
+    grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:8px;
   }
+  .cats > *{ grid-column:1 / -1; }
+  .cats > .cat-btn.half{ grid-column:auto; flex-direction:column; align-items:flex-start; justify-content:space-between; gap:6px; min-height:62px; }
+  .cats > .cat-btn.half span:first-child{ white-space:normal; margin-right:0; flex:0 0 auto; line-height:1.25; }
   .cat-btn{
     display:flex;
     align-items:center;
@@ -1055,6 +1059,35 @@
   .story-dots button{ width:7px; height:7px; border-radius:50%; border:0; padding:0; background:var(--grid); cursor:pointer; transition:all .25s; }
   .story-dots button.on{ background:var(--accent); width:20px; border-radius:99px; }
 
+
+  /* ===== Layout anpassen ===== */
+  .month-nav > .notif-btn, .month-nav > .wrapped-btn{ flex:0 0 auto; white-space:nowrap; }
+  .month-nav > select{ flex:1 1 150px; min-width:0; }
+  #modules{ display:flex; flex-direction:column; }
+  .lay-grip-inline{ font-size:16px; color:var(--text); }
+  .lay-head{ font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin:22px 2px 8px; }
+  .lay-note{ font-size:12px; color:var(--text-dim); margin:-2px 2px 10px; line-height:1.4; }
+  .lay-list{ display:flex; flex-direction:column; gap:8px; }
+  .lay-row{ display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:8px 12px 8px 4px; position:relative; user-select:none; -webkit-user-select:none; }
+  .lay-row.dragging{ z-index:5; box-shadow:0 14px 30px -10px rgba(0,0,0,.55); border-color:var(--accent); transition:none; }
+  .lay-row.off .lay-name{ opacity:.45; }
+  .lay-handle{ touch-action:none; cursor:grab; width:40px; height:44px; flex:0 0 auto; background:none; border:none; color:var(--text-dim); display:flex; align-items:center; justify-content:center; padding:0; }
+  .lay-name{ flex:1; min-width:0; }
+  .lay-name b{ display:block; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lay-name small{ display:block; font-size:11px; color:var(--text-dim); margin-top:1px; }
+  .lay-fixed{ font-size:11px; color:var(--text-dim); flex:0 0 auto; }
+  .lay-switch{ width:46px; height:28px; border-radius:99px; border:none; background:var(--grid); position:relative; cursor:pointer; flex:0 0 auto; padding:0; transition:background .2s; }
+  .lay-switch::after{ content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .lay-switch.on{ background:var(--accent); }
+  .lay-switch.on::after{ transform:translateX(18px); }
+  .lay-seg{ display:flex; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:2px; flex:0 0 auto; }
+  .lay-seg button{ border:none; background:none; color:var(--text-dim); font:600 12px 'Inter',sans-serif; padding:6px 11px; border-radius:7px; cursor:pointer; }
+  .lay-seg button.on{ background:var(--accent); color:#fff; }
+  .lay-actions{ display:flex; gap:10px; margin-top:24px; }
+  .lay-actions button{ flex:1; border-radius:12px; padding:14px; font:600 14px 'Inter',sans-serif; cursor:pointer; }
+  .lay-reset{ background:var(--panel); border:1px solid var(--line); color:var(--text); }
+  .lay-reset.confirm{ border-color:#E5484D; color:#E5484D; }
+  .lay-done{ background:var(--accent); border:1px solid var(--accent); color:#fff; }
 </style>
 </head>
 <body>
@@ -1081,6 +1114,7 @@
 
   <div class="month-nav">
     <button class="notif-btn theme-btn" onclick="openThemePicker(false)" title="Design ändern" aria-label="Design ändern"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L13 13.8l-2.8-2.8Z"/><path d="M10.2 11 7 14.2c-1.9 0-3.4 1.6-3.4 3.4 0 1.2-.6 2.2-1.6 2.8 4.2.6 8.4-.6 8.4-5l1.9-1.9"/></svg></button>
+    <button class="notif-btn theme-btn" onclick="openLayoutEditor()" title="Layout anpassen" aria-label="Layout anpassen"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg></button>
     <button class="notif-btn" id="notifBtn" onclick="toggleNotifications()" title="Benachrichtigungen">🔔</button>
     <button class="wrapped-btn" onclick="openWrappedManually()">Wochen-Wrapped</button>
     <select id="monthSelect" onchange="onMonthSelect()"></select>
@@ -1093,12 +1127,16 @@
 
   <div id="who"></div>
 
+  <div id="modules">
+  <div class="mod" data-mod="board">
   <div class="board" id="board">
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
   </div>
+  </div>
 
+  <div class="mod" data-mod="chart">
   <section class="chart" onclick="openChartModal()">
     <h2>
       <span id="chartTitle">Punkteverlauf</span>
@@ -1112,13 +1150,18 @@
   </section>
 
   <div class="stakes" id="stakesBanner"></div>
+  </div>
 
+  <div class="mod" data-mod="log">
   <section class="log" id="logSection">
     <h2>Punkte eintragen</h2>
     <div class="diversity-hint" id="diversityHint"></div>
     <div class="cats" id="cats"></div>
   </section>
 
+  </div>
+
+  <div class="mod" data-mod="wallet">
   <section class="wallet">
     <h2>Guthaben</h2>
     <div class="wallet-cards" id="walletCards">
@@ -1129,11 +1172,17 @@
     <div id="walletLog"></div>
   </section>
 
+  </div>
+
+  <div class="mod" data-mod="feed">
   <section class="feed">
     <h2 class="feed-toggle" onclick="toggleFeed()">Letzte Einträge <span id="feedToggleIcon">▸</span></h2>
     <div id="feed" style="display:none"></div>
   </section>
 
+  </div>
+
+  <div class="mod" data-mod="heat">
   <section class="heat">
     <h2>Jahresübersicht</h2>
     <div class="heat-tabs" id="heatTabs"></div>
@@ -1144,6 +1193,8 @@
     <div class="heat-sum" id="heatSum"></div>
     <div class="heat-legend" id="heatLegend"></div>
   </section>
+  </div>
+  </div>
 
 </div>
 <div class="toast" id="toast"></div>
@@ -1155,6 +1206,22 @@
     <div class="theme-options" id="themeOptions"></div>
     <button class="theme-default" id="themeDefaultBtn" onclick="chooseTheme('default')">Beim normalen Design bleiben</button>
     <div class="theme-hint">Ändern kannst du das jederzeit oben über das Pinsel-Symbol.</div>
+  </div>
+</div>
+<div class="theme-overlay" id="layoutOverlay" role="dialog" aria-modal="true" aria-labelledby="layoutTitle">
+  <div class="theme-inner">
+    <button class="theme-close" onclick="closeLayoutEditor()" aria-label="Schließen">×</button>
+    <h2 class="theme-title" id="layoutTitle">Dein Layout</h2>
+    <p class="theme-sub">Zieh an den Griffen <span class="lay-grip-inline">⠿</span> um die Reihenfolge zu ändern. Gilt nur für dieses Gerät, an den Punkten ändert sich nichts.</p>
+    <div class="lay-head">Bereiche</div>
+    <div class="lay-list" id="layMods"></div>
+    <div class="lay-head">Kategorien beim Eintragen</div>
+    <div class="lay-note">Zwei „Halb“-Kategorien hintereinander stehen nebeneinander. Die Wochen-Kategorien siehst du wie bisher nur montags.</div>
+    <div class="lay-list" id="layCats"></div>
+    <div class="lay-actions">
+      <button class="lay-reset" id="layReset" onclick="resetLayout()">Zurücksetzen</button>
+      <button class="lay-done" onclick="closeLayoutEditor()">Fertig</button>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
@@ -1449,6 +1516,164 @@ function maybeShowThemeOnboarding(){
   try { seen = localStorage.getItem(THEME_KEY); } catch(e){}
   if(!seen) openThemePicker(true);
 }
+
+
+/* ===== Layout anpassen (pro Gerät, localStorage) ===== */
+const LAYOUT_KEY = "sb_layout_v1";
+const MODULES = [
+  { id:"board",  label:"Rangliste",       sub:"Die Karten der drei" },
+  { id:"chart",  label:"Punkteverlauf",   sub:"Diagramm + Preisgeld-Hinweis" },
+  { id:"log",    label:"Punkte eintragen",sub:"Immer sichtbar", fixed:true },
+  { id:"wallet", label:"Guthaben",        sub:"Wallet & Ausgaben" },
+  { id:"feed",   label:"Letzte Einträge", sub:"Eingeklappte Liste" },
+  { id:"heat",   label:"Jahresübersicht", sub:"Heatmap" },
+];
+function layoutCats(){ return CATEGORIES.filter(c=> !c.hidden); }
+function defaultLayout(){
+  return { mods: MODULES.map(m=>m.id), hiddenMods: [], cats: layoutCats().map(c=>c.id), half: [] };
+}
+function sanitizeLayout(raw){
+  const d = defaultLayout();
+  if(!raw || typeof raw !== "object") return d;
+  const uniq = (arr, valid)=>{ const out = []; (Array.isArray(arr) ? arr : []).forEach(x=>{ if(valid.includes(x) && !out.includes(x)) out.push(x); }); return out; };
+  const mods = uniq(raw.mods, d.mods);  d.mods.forEach(id=>{ if(!mods.includes(id)) mods.push(id); });
+  const cats = uniq(raw.cats, d.cats);  d.cats.forEach(id=>{ if(!cats.includes(id)) cats.push(id); });
+  const hiddenMods = uniq(raw.hiddenMods, d.mods).filter(id=> !MODULES.find(m=>m.id === id).fixed);
+  const half = uniq(raw.half, d.cats).filter(id=> CATEGORIES.find(c=>c.id === id).type === "flat");
+  return { mods, hiddenMods, cats, half };
+}
+function loadLayout(){
+  try { return sanitizeLayout(JSON.parse(localStorage.getItem(LAYOUT_KEY))); } catch(e){ return defaultLayout(); }
+}
+let layout = loadLayout();
+function saveLayout(){ try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch(e){} }
+
+function applyLayout(){
+  document.querySelectorAll("#modules > .mod").forEach(el=>{
+    const id = el.dataset.mod;
+    el.style.order = String(layout.mods.indexOf(id));
+    el.style.display = layout.hiddenMods.includes(id) ? "none" : "";
+  });
+  try { if(sb) renderCats(); } catch(e){} // beim allerersten Aufruf existiert sb noch nicht
+  // Was eben erst sichtbar wurde, braucht eine frische Größe
+  requestAnimationFrame(()=>{
+    try { if(trendChart && !layout.hiddenMods.includes("chart")) trendChart.resize(); } catch(e){}
+    try { if(!layout.hiddenMods.includes("heat") && allEntries && allEntries.length) renderHeatmap(); } catch(e){}
+  });
+}
+
+const GRIP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>';
+
+function renderLayoutEditor(){
+  document.getElementById("layMods").innerHTML = layout.mods.map(id=>{
+    const m = MODULES.find(x=>x.id === id);
+    const on = !layout.hiddenMods.includes(id);
+    const ctrl = m.fixed
+      ? `<span class="lay-fixed">immer an</span>`
+      : `<button class="lay-switch${on ? " on" : ""}" role="switch" aria-checked="${on}" aria-label="${m.label} anzeigen" data-act="toggle" data-id="${id}"></button>`;
+    return `<div class="lay-row${on ? "" : " off"}" data-id="${id}"><button class="lay-handle" aria-label="${m.label} verschieben">${GRIP_SVG}</button><div class="lay-name"><b>${m.label}</b><small>${m.sub}</small></div>${ctrl}</div>`;
+  }).join("");
+  document.getElementById("layCats").innerHTML = layout.cats.map(id=>{
+    const c = CATEGORIES.find(x=>x.id === id);
+    const half = layout.half.includes(id);
+    const sub = c.type === "flat" ? (c.limit === "week-monday" ? `+${c.points} · nur montags` : `+${c.points} Pkt`) : "mit Eingabe";
+    const ctrl = c.type === "flat"
+      ? `<div class="lay-seg"><button class="${half ? "" : "on"}" data-act="size" data-id="${id}" data-v="full">Breit</button><button class="${half ? "on" : ""}" data-act="size" data-id="${id}" data-v="half">Halb</button></div>`
+      : `<span class="lay-fixed">immer breit</span>`;
+    const label = c.label.replace("Social-Media-Wochenschnitt ", "Social Media ");
+    return `<div class="lay-row" data-id="${id}"><button class="lay-handle" aria-label="${label} verschieben">${GRIP_SVG}</button><div class="lay-name"><b>${label}</b><small>${sub}</small></div>${ctrl}</div>`;
+  }).join("");
+}
+
+function openLayoutEditor(){
+  renderLayoutEditor();
+  const r = document.getElementById("layReset"); r.classList.remove("confirm"); r.textContent = "Zurücksetzen";
+  document.getElementById("layoutOverlay").classList.add("show");
+}
+function closeLayoutEditor(){
+  document.getElementById("layoutOverlay").classList.remove("show");
+}
+let layResetTimer = null;
+function resetLayout(){
+  const r = document.getElementById("layReset");
+  if(!r.classList.contains("confirm")){
+    r.classList.add("confirm"); r.textContent = "Wirklich zurücksetzen?";
+    clearTimeout(layResetTimer);
+    layResetTimer = setTimeout(()=>{ r.classList.remove("confirm"); r.textContent = "Zurücksetzen"; }, 3000);
+    return;
+  }
+  clearTimeout(layResetTimer);
+  layout = defaultLayout(); saveLayout(); applyLayout(); renderLayoutEditor();
+  r.classList.remove("confirm"); r.textContent = "Zurücksetzen";
+}
+
+function makeSortable(list, onDone){
+  list.addEventListener("pointerdown", e=>{
+    const h = e.target.closest(".lay-handle");
+    if(!h || !list.contains(h) || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const row = h.closest(".lay-row");
+    const scroller = document.getElementById("layoutOverlay");
+    e.preventDefault();
+    const grab = e.clientY - row.getBoundingClientRect().top;
+    let y = e.clientY, raf = 0, active = true;
+    row.classList.add("dragging");
+    const update = ()=>{
+      for(let guard = 0; guard < 30; guard++){
+        row.style.transform = "none";
+        const natural = row.getBoundingClientRect().top;
+        row.style.transform = `translateY(${y - grab - natural}px)`;
+        const center = y - grab + row.offsetHeight / 2;
+        const prev = row.previousElementSibling, next = row.nextElementSibling;
+        if(prev){ const r = prev.getBoundingClientRect(); if(center < r.top + r.height / 2){ list.insertBefore(row, prev); continue; } }
+        if(next){ const r = next.getBoundingClientRect(); if(center > r.top + r.height / 2){ list.insertBefore(next, row); continue; } }
+        break;
+      }
+    };
+    const tick = ()=>{
+      if(!active) return;
+      const top = scroller.getBoundingClientRect().top;
+      if(y < top + 70) scroller.scrollTop -= 12;
+      else if(y > window.innerHeight - 70) scroller.scrollTop += 12;
+      update();
+      raf = requestAnimationFrame(tick);
+    };
+    const move = ev=>{ if(ev.pointerId === e.pointerId) y = ev.clientY; };
+    const end = ev=>{
+      if(ev && ev.pointerId !== e.pointerId) return;
+      if(!active) return; active = false;
+      cancelAnimationFrame(raf);
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", end);
+      document.removeEventListener("pointercancel", end);
+      row.classList.remove("dragging"); row.style.transform = "";
+      onDone([...list.querySelectorAll(":scope > .lay-row")].map(r=> r.dataset.id));
+    };
+    // Auf document statt per Pointer-Capture: Capture geht verloren, sobald die Zeile im DOM verschoben wird.
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", end);
+    document.addEventListener("pointercancel", end);
+    update(); raf = requestAnimationFrame(tick);
+  });
+}
+
+(function initLayoutEditor(){
+  makeSortable(document.getElementById("layMods"), ids=>{ layout.mods = ids; saveLayout(); applyLayout(); });
+  makeSortable(document.getElementById("layCats"), ids=>{ layout.cats = ids; saveLayout(); applyLayout(); });
+  document.getElementById("layoutOverlay").addEventListener("click", e=>{
+    const b = e.target.closest("[data-act]"); if(!b) return;
+    const id = b.dataset.id;
+    if(b.dataset.act === "toggle"){
+      const i = layout.hiddenMods.indexOf(id);
+      if(i < 0) layout.hiddenMods.push(id); else layout.hiddenMods.splice(i, 1);
+    } else if(b.dataset.act === "size"){
+      const i = layout.half.indexOf(id);
+      if(b.dataset.v === "half" && i < 0) layout.half.push(id);
+      if(b.dataset.v === "full" && i >= 0) layout.half.splice(i, 1);
+    }
+    layout = sanitizeLayout(layout); saveLayout(); applyLayout(); renderLayoutEditor();
+  });
+  applyLayout();
+})();
 
 // Kleines, einheitliches Icon-Set (inline SVG) statt Emojis — sieht auf jedem
 // Gerät/Betriebssystem gleich aus, statt je nach Emoji-Schriftart anders.
@@ -2223,13 +2448,14 @@ function renderCats(){
   renderDiversityHint();
   const el = document.getElementById("cats");
   el.innerHTML = "";
-  CATEGORIES.forEach(c=>{
+  const catOrder = id=> { const i = layout.cats.indexOf(id); return i < 0 ? 999 : i; };
+  [...CATEGORIES].sort((a,b)=> catOrder(a.id) - catOrder(b.id)).forEach(c=>{
     if(c.hidden) return;
     if(c.limit === "week-monday" && !isMonday()) return; // Wochen-Kategorien nur montags anzeigen
     if(c.type === "flat"){
       const lock = categoryLockState(c);
       const btn = document.createElement("button");
-      btn.className = "cat-btn" + (lock.locked ? " done" : "");
+      btn.className = "cat-btn" + (lock.locked ? " done" : "") + (layout.half.includes(c.id) ? " half" : "");
       btn.disabled = lock.locked;
       let progress = "";
       if(!lock.locked && lock.max === Infinity){ progress = lock.count > 0 ? ` · ${lock.count}x` : ""; }
