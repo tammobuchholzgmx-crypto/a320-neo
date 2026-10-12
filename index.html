@@ -2766,7 +2766,16 @@ function buildCategoryByPlayerChart(entries){
     label: p.name,
     data: usedCats.map(c=> catTotals[c.id][p.id]),
     backgroundColor: PLAYER_COLORS[p.id],
-    borderRadius: 6, borderSkipped: false, maxBarThickness: 20,
+    // Nur die Außenenden des gesamten Balkens abrunden, die Segmente dazwischen stoßen eckig aneinander
+    borderRadius: (c)=>{
+      const ds = c.chart.data.datasets, i = c.dataIndex;
+      const vals = ds.map(d=> d.data[i] || 0);
+      const first = vals.findIndex(v=> v > 0);
+      let last = -1; vals.forEach((v, k)=>{ if(v > 0) last = k; });
+      const r = 8, isFirst = c.datasetIndex === first, isLast = c.datasetIndex === last;
+      return { topLeft: isFirst ? r : 0, bottomLeft: isFirst ? r : 0, topRight: isLast ? r : 0, bottomRight: isLast ? r : 0 };
+    },
+    borderSkipped: false, maxBarThickness: 20,
   }));
   return { labels, datasets, usedCats };
 }
