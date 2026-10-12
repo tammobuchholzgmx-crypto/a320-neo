@@ -517,7 +517,7 @@
   /* Month archive nav */
   .month-nav{
     display:flex;
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
     justify-content:flex-end;
     gap:8px;
     margin-bottom:18px;
@@ -1062,7 +1062,9 @@
 
   /* ===== Layout anpassen ===== */
   .month-nav > .notif-btn, .month-nav > .wrapped-btn{ flex:0 0 auto; white-space:nowrap; }
-  .month-nav > select{ flex:1 1 150px; min-width:0; }
+  .month-nav > select{ flex:1 1 0; min-width:0; text-overflow:ellipsis; }
+  .month-nav > .notif-btn{ padding-left:10px; padding-right:10px; }
+  .month-nav > .wrapped-btn{ padding-left:10px; padding-right:10px; font-size:12px; }
   #modules{ display:flex; flex-direction:column; }
   .lay-grip-inline{ font-size:16px; color:var(--text); }
   .lay-head{ font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin:22px 2px 8px; }
@@ -1116,7 +1118,7 @@
     <button class="notif-btn theme-btn" onclick="openThemePicker(false)" title="Design ändern" aria-label="Design ändern"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L13 13.8l-2.8-2.8Z"/><path d="M10.2 11 7 14.2c-1.9 0-3.4 1.6-3.4 3.4 0 1.2-.6 2.2-1.6 2.8 4.2.6 8.4-.6 8.4-5l1.9-1.9"/></svg></button>
     <button class="notif-btn theme-btn" onclick="openLayoutEditor()" title="Layout anpassen" aria-label="Layout anpassen"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg></button>
     <button class="notif-btn" id="notifBtn" onclick="toggleNotifications()" title="Benachrichtigungen">🔔</button>
-    <button class="wrapped-btn" onclick="openWrappedManually()">Wochen-Wrapped</button>
+    <button class="wrapped-btn" onclick="openWrappedManually()">Wrapped</button>
     <select id="monthSelect" onchange="onMonthSelect()"></select>
   </div>
 
@@ -3169,8 +3171,8 @@ function buildMonthOptions(){
   const sel = document.getElementById("monthSelect");
   sel.innerHTML = sorted.map(k=>{
     const [y, m] = k.split("-").map(Number);
-    const label = new Date(y, m-1, 1).toLocaleDateString('de-DE', {month:'long', year:'numeric'});
-    return `<option value="${k}">${k === nowKey ? label + " (aktuell)" : label}</option>`;
+    const label = new Date(y, m-1, 1).toLocaleDateString('de-DE', {month:'short', year:'numeric'});
+    return `<option value="${k}">${label}</option>`;
   }).join("");
   sel.value = viewedMonthKey;
 }
