@@ -875,22 +875,38 @@
     margin-right:8px;
   }
   .numeric-input{display:flex;gap:6px;flex-shrink:0;}
-  .numeric-input input{
-    width:64px;
+  .unit-field{
+    display:flex;align-items:center;gap:4px;
     background:var(--bg);
     border:1px solid var(--line);
-    color:var(--text);
-    border-radius:6px;
-    padding:8px 8px;
-    font-size:16px;
-    font-family:'Inter';
+    border-radius:10px;
+    padding:0 10px 0 4px;
+    width:104px;justify-content:flex-end;
+    transition:border-color .15s;
   }
+  .unit-field:focus-within{border-color:var(--accent);}
+  .unit-field input{
+    width:100%;min-width:0;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text);
+    padding:9px 4px;
+    font-size:16px;
+    font-weight:600;
+    font-family:'Inter';
+    text-align:right;
+    -moz-appearance:textfield;
+  }
+  .unit-field input::-webkit-outer-spin-button,.unit-field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .unit-field input::placeholder{color:var(--text-dim);opacity:.5;font-weight:500;}
+  .unit-field em{font-style:normal;font-size:12px;color:var(--text-dim);font-weight:500;}
   .numeric-input button{
     background:var(--accent);
     color:#fff;
     border:none;
-    border-radius:6px;
-    padding:8px 12px;
+    border-radius:10px;
+    padding:10px 14px;
     font-size:12px;
     font-weight:600;
     cursor:pointer;
@@ -1169,7 +1185,7 @@ const CATEGORIES = [
   { id: "dehnen",                label: "Dehnen",                                       type: "flat",    points: 20, limit: "day" },
   { id: "journaln",               label: "Journaln",                                    type: "flat",    points: 20, limit: "day" },
   { id: "aufraeumen",             label: "Aufräumen",                                   type: "flat",    points: 15, limit: "day" },
-  { id: "schritte",                label: "Schritte (in Tausend)",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
+  { id: "schritte",                label: "Schritte",         type: "numeric", unitLabel: "Tausend", unitSize: 1, pointsPerUnit: 1, displayMultiplier: 1000, displayUnitLabel: "Schritte" },
   { id: "lesen",                    label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
   // Entfernt: nur noch für bestehende Einträge (Anzeige/Charts), nicht mehr eintragbar.
   { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity, hidden: true },
@@ -2226,7 +2242,7 @@ function renderCats(){
       row.innerHTML = `
         <span>${c.label}</span>
         <span class="numeric-input">
-          <input type="number" min="0" step="1" placeholder="${c.unitLabel}" id="input-${c.id}">
+          <span class="unit-field"><input type="number" inputmode="numeric" min="0" step="1" placeholder="0" id="input-${c.id}"><em>${({Minuten:"min", Tausend:"Tsd."})[c.unitLabel] || c.unitLabel}</em></span>
           <button onclick="logNumeric('${c.id}')">Eintragen</button>
         </span>`;
       el.appendChild(row);
