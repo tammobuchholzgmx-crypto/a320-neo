@@ -992,13 +992,52 @@
   .heat-tabs{ display:flex; gap:6px; margin-bottom:12px; }
   .heat-tabs button{ flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text-dim); border-radius:8px; padding:7px 4px; font-size:13px; font-family:'Inter'; cursor:pointer; }
   .heat-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px; }
-  .heat-months{ display:grid; grid-auto-flow:column; grid-auto-columns:13px; gap:3px; font-size:10px; color:var(--text-dim); height:14px; margin-bottom:3px; white-space:nowrap; }
-  .heat-grid{ display:grid; grid-template-rows:repeat(7,13px); grid-auto-flow:column; grid-auto-columns:13px; gap:3px; }
-  .heat-cell{ width:13px; height:13px; border-radius:3px; background:var(--panel-2); }
+  .heat-months{ display:grid; grid-auto-flow:column; grid-auto-columns:15px; gap:3px; font-size:10px; color:var(--text-dim); opacity:.8; height:14px; margin-bottom:3px; white-space:nowrap; }
+  .heat-grid{ display:grid; grid-template-rows:repeat(7,15px); grid-auto-flow:column; grid-auto-columns:15px; gap:3px; }
+  .heat-cell{ width:15px; height:15px; border-radius:5px; background:var(--panel-2); }
   .heat-cell.today{ outline:1px solid var(--text-dim); }
   .heat-sum{ font-size:12px; color:var(--text-dim); margin-top:8px; }
   .heat-legend{ display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-dim); margin-top:6px; }
   .heat-legend i{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+
+  /* ===== Apple-Look: Karten, Ringe, Story ===== */
+  :is(section.chart, section.log, section.wallet, section.heat){ border-radius:20px; padding:18px; }
+  section.chart h2{ font-size:13px; letter-spacing:.01em; margin-bottom:6px; }
+  .chart-hero{ margin:0 0 12px; }
+  .chart-hero .big{ font-size:30px; font-weight:700; letter-spacing:-0.03em; line-height:1.1; font-family:'Archivo','Inter',sans-serif; }
+  .chart-hero .sub{ font-size:12px; color:var(--text-dim); margin-top:3px; }
+  section.chart .chart-wrap{ min-height:0; }
+
+  section.rings{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:18px; margin-bottom:24px; }
+  section.rings h2{ font-size:13px; font-weight:600; margin:0 0 12px; color:var(--text-dim); }
+  .rings-body{ display:flex; align-items:center; gap:20px; }
+  .rings-body svg{ flex:0 0 auto; }
+  .ring-track{ fill:none; stroke:var(--grid); stroke-width:10; opacity:.8; }
+  .ring-prog{ fill:none; stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1); }
+  .rings-legend{ flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; }
+  .ring-row{ display:flex; align-items:baseline; gap:8px; }
+  .ring-dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; align-self:center; }
+  .ring-name{ font-size:13px; color:var(--text); flex:1; }
+  .ring-val{ font-size:15px; font-weight:700; letter-spacing:-0.02em; }
+  .ring-val small{ font-size:11px; font-weight:500; color:var(--text-dim); }
+  .rings-goal{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+
+  .story{ margin:12px -4px 0; }
+  .story-track{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:0 4px; }
+  .story-track::-webkit-scrollbar{ display:none; }
+  .story-page{ flex:0 0 100%; min-width:0; scroll-snap-align:center; min-height:300px; background:var(--panel-2); border:1px solid var(--line); border-radius:22px; padding:22px 20px; display:flex; flex-direction:column; justify-content:center; }
+  .story-kicker{ font-size:12px; font-weight:600; color:var(--text-dim); letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px; }
+  .story-big{ font-size:46px; font-weight:800; letter-spacing:-0.04em; line-height:1.05; font-family:'Archivo','Inter',sans-serif; }
+  .story-sub{ font-size:15px; color:var(--text-dim); margin-top:8px; line-height:1.4; }
+  .story-chip{ display:inline-block; margin-top:14px; padding:6px 12px; border-radius:99px; background:var(--panel); border:1px solid var(--line); font-size:13px; font-weight:600; align-self:flex-start; }
+  .story-tile{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:12px; }
+  .story-tile .big{ font-size:30px; font-weight:800; letter-spacing:-0.03em; line-height:1.1; }
+  .story-tile .lbl{ font-size:12px; color:var(--text-dim); margin-bottom:4px; }
+  .story-spark{ position:relative; height:64px; margin-top:8px; }
+  .story-chart{ position:relative; height:240px; margin-top:6px; }
+  .story-dots{ display:flex; justify-content:center; gap:7px; margin:14px 0 2px; }
+  .story-dots button{ width:7px; height:7px; border-radius:50%; border:0; padding:0; background:var(--grid); cursor:pointer; transition:all .25s; }
+  .story-dots button.on{ background:var(--accent); width:20px; border-radius:99px; }
 </style>
 </head>
 <body>
@@ -1043,11 +1082,20 @@
     <div class="card"><div class="skel" style="width:50%;height:10px;margin-bottom:10px;"></div><div class="skel" style="width:70%;height:14px;margin-bottom:10px;"></div><div class="skel" style="width:60%;height:26px;"></div></div>
   </div>
 
+  <section class="rings" id="ringsSection" style="display:none">
+    <h2>Heute</h2>
+    <div class="rings-body">
+      <svg id="ringsSvg" viewBox="0 0 140 140" width="132" height="132" aria-hidden="true"></svg>
+      <div class="rings-legend" id="ringsLegend"></div>
+    </div>
+  </section>
+
   <section class="chart" onclick="openChartModal()">
     <h2>
       <span id="chartTitle">Punkteverlauf</span>
       <span class="chart-expand-hint">Details</span>
     </h2>
+    <div class="chart-hero" id="chartHero"></div>
     <div class="chart-wrap">
       <div class="skel" id="chartSkeleton"></div>
       <canvas id="trendChart"></canvas>
@@ -1473,6 +1521,7 @@ let weekdayChartInstance = null;
 let wrappedCatChartInstance = null;
 let wrappedWeekChartInstance = null;
 let wrappedGapChartInstance = null;
+let wrappedGap2ChartInstance = null;
 let pieChartInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
 let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
@@ -1865,76 +1914,84 @@ function buildWrapped(weekStart){
   return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, gapSeries23, dayLabels };
 }
 
+function onStoryScroll(){
+  const t = document.getElementById("storyTrack");
+  if(!t) return;
+  const i = Math.round(t.scrollLeft / Math.max(1, t.clientWidth));
+  document.querySelectorAll("#storyDots button").forEach((d, k)=> d.classList.toggle("on", k === i));
+}
+function goStory(i){
+  const t = document.getElementById("storyTrack");
+  if(t) t.scrollTo({ left: i * t.clientWidth, behavior: "smooth" });
+}
+
+function sparkChart(canvasId, data, color, labels){
+  return new Chart(document.getElementById(canvasId), {
+    type: "line",
+    data: { labels, datasets: [{ data, borderColor: color, backgroundColor: gradFill(color, 0.25), fill: true, borderWidth: 3, tension: 0.35, pointRadius: data.map((_, i)=> i === data.length - 1 ? 4 : 0), pointBackgroundColor: color, pointBorderColor: cssVar("--panel"), pointBorderWidth: 2, pointHoverRadius: 5 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { label: (it)=> `${it.parsed.y} Pkt Abstand` } } },
+      scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
+    },
+  });
+}
+
 function renderWrapped(w){
+  applyChartDefaults();
   const rangeEnd = new Date(w.start); rangeEnd.setDate(rangeEnd.getDate()+6);
   const rangeLabel = `${w.start.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})} – ${rangeEnd.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})}`;
 
   const catData = buildCategoryByPlayerChart(w.weekEntries);
   const weekData = buildWeekdayChart(w.weekEntries);
+  const ranked = PLAYERS.map(p=> ({ p, pts: w.totals[p.id] || 0 })).sort((a,b)=> b.pts - a.pts);
+  const gap12 = w.gapSeries[w.gapSeries.length - 1] || 0;
+  const gap23 = w.gapSeries23[w.gapSeries23.length - 1] || 0;
+  const colorOf = (pl)=> PLAYER_COLORS[pl.id] || "var(--text)";
 
-  const facts = [
-    w.mvp ? `${ICONS.trophy} <strong>${w.mvp.name}</strong> ist MVP der Woche mit ${w.totals[w.mvp.id]} Pkt` : "",
-    (w.biggestJump.player && w.biggestJump.pts > 0) ? `${ICONS.trend} Größter Sprung: <strong>${w.biggestJump.player.name}</strong> mit +${w.biggestJump.pts} an einem Tag (${w.biggestJump.dayLabel})` : "",
-    (w.bestGroupDay && w.bestGroupPts > 0) ? `${ICONS.flame} Fleißigster Tag zusammen: ${w.bestGroupDay} mit ${w.bestGroupPts} Pkt` : "",
-    (w.change !== null) ? `${ICONS.trend} ${w.change >= 0 ? "+" : ""}${w.change}% ggü. letzter Woche` : "",
-  ].filter(Boolean).map(f=> `<div class="wrapped-fact">${f}</div>`).join("");
+  const page1 = w.mvp
+    ? `<div class="story-kicker">Wochen-Wrapped · ${rangeLabel}</div>
+       <div class="story-big" style="color:${colorOf(w.mvp)}">${w.mvp.name}</div>
+       <div class="story-sub">ist MVP der Woche mit ${w.totals[w.mvp.id]} Punkten</div>
+       ${w.change !== null ? `<div class="story-chip">${w.change >= 0 ? "↑" : "↓"} ${Math.abs(w.change)}% ggü. letzter Woche</div>` : ""}`
+    : `<div class="story-kicker">Wochen-Wrapped · ${rangeLabel}</div><div class="story-big">Ruhige Woche</div><div class="story-sub">Keine Punkte diese Woche.</div>`;
+
+  const page2 = `
+    <div class="story-kicker">Highlights</div>
+    ${(w.biggestJump.player && w.biggestJump.pts > 0) ? `<div class="story-tile"><div class="lbl">Größter Sprung an einem Tag</div><div class="big" style="color:${colorOf(w.biggestJump.player)}">+${w.biggestJump.pts}</div><div class="lbl" style="margin:4px 0 0">${w.biggestJump.player.name} · ${w.biggestJump.dayLabel}</div></div>` : ""}
+    ${(w.bestGroupDay && w.bestGroupPts > 0) ? `<div class="story-tile"><div class="lbl">Fleißigster Tag zusammen</div><div class="big">${w.bestGroupDay}</div><div class="lbl" style="margin:4px 0 0">${w.bestGroupPts} Punkte von euch dreien</div></div>` : ""}`;
+
+  const page3 = ranked.length >= 3 ? `
+    <div class="story-kicker">Abstand zwischen den Plätzen</div>
+    <div class="story-tile"><div class="lbl">${ranked[0].p.name} vor ${ranked[1].p.name}</div><div class="big" style="color:#E8B93F">+${gap12}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
+    <div class="story-tile"><div class="lbl">${ranked[1].p.name} vor ${ranked[2].p.name}</div><div class="big" style="color:#4C6FFF">+${gap23}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
+
+  const pages = [
+    page1, page2, page3,
+    `<div class="story-kicker">Punkte pro Kategorie</div><div class="story-chart" style="height:${Math.max(240, catData.labels.length * 40)}px"><canvas id="wrappedCatChart"></canvas></div>`,
+    `<div class="story-kicker">Punkte pro Wochentag</div>${weekData.insight ? `<div class="story-sub" style="margin:0 0 6px;font-size:13px">${weekData.insight}</div>` : ""}<div class="story-chart"><canvas id="wrappedWeekChart"></canvas></div>`,
+  ].filter(Boolean);
 
   openModal(`
     <h3>Wochen-Wrapped</h3>
-    <p class="modal-sub">${rangeLabel}</p>
-    ${facts}
-
-    <h3 style="margin-top:20px;">Punkte pro Kategorie</h3>
-    <canvas id="wrappedCatChart" style="max-height:${Math.max(140, catData.labels.length * 42)}px;"></canvas>
-
-    <h3 style="margin-top:20px;">Punkte pro Wochentag</h3>
-    <canvas id="wrappedWeekChart" style="max-height:170px;"></canvas>
-
-    <h3 style="margin-top:20px;">Abstand zwischen den Plätzen</h3>
-    <canvas id="wrappedGapChart" style="max-height:170px;"></canvas>
+    <div class="story">
+      <div class="story-track" id="storyTrack" onscroll="onStoryScroll()">
+        ${pages.map(h=> `<div class="story-page">${h}</div>`).join("")}
+      </div>
+      <div class="story-dots" id="storyDots">${pages.map((_, i)=> `<button class="${i===0?"on":""}" onclick="goStory(${i})" aria-label="Seite ${i+1}"></button>`).join("")}</div>
+    </div>
   `, true);
 
-  const legend = { position: "bottom", labels: { color: cssVar("--text"), boxWidth: 12, font: { size: 12 }, padding: 12 } };
-  const tickColor = { color: cssVar("--text-dim"), font: { size: 11 } };
-  const gridColor = { color: cssVar("--grid") };
-
+  if(document.getElementById("wrappedGapChart")){
+    wrappedGapChartInstance = sparkChart("wrappedGapChart", w.gapSeries, "#E8B93F", w.dayLabels);
+    wrappedGap2ChartInstance = sparkChart("wrappedGap2Chart", w.gapSeries23, "#4C6FFF", w.dayLabels);
+  }
   wrappedCatChartInstance = new Chart(document.getElementById("wrappedCatChart"), {
-    type: "bar",
-    data: { labels: catData.labels, datasets: catData.datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: "y",
-      plugins: { legend },
-      scales: {
-        x: { stacked: true, ticks: tickColor, grid: gridColor },
-        y: { stacked: true, ticks: { ...tickColor, autoSkip: false }, grid: { display: false } },
-      }
-    }
+    type: "bar", data: { labels: catData.labels, datasets: catData.datasets }, options: categoryOptions(),
   });
-
   wrappedWeekChartInstance = new Chart(document.getElementById("wrappedWeekChart"), {
-    type: "bar",
-    data: weekData,
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { x: { ticks: tickColor, grid: gridColor }, y: { ticks: tickColor, grid: gridColor } }
-    }
-  });
-
-  wrappedGapChartInstance = new Chart(document.getElementById("wrappedGapChart"), {
-    type: "line",
-    data: {
-      labels: w.dayLabels,
-      datasets: [
-        { label: "Platz 1 vor 2", data: w.gapSeries, borderColor: "#E8B93F", backgroundColor: "rgba(232,185,63,0.15)", fill: true, tension: 0.3, pointRadius: 3 },
-        { label: "Platz 2 vor 3", data: w.gapSeries23, borderColor: "#4C6FFF", backgroundColor: "rgba(76,111,255,0.12)", fill: true, tension: 0.3, pointRadius: 3 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend },
-      scales: { x: { ticks: tickColor, grid: gridColor }, y: { ticks: tickColor, grid: gridColor, beginAtZero: true } }
-    }
+    type: "bar", data: weekData, options: weekdayOptions(),
   });
 }
 
@@ -1992,6 +2049,7 @@ function closeModal(){
   if(wrappedCatChartInstance){ wrappedCatChartInstance.destroy(); wrappedCatChartInstance = null; }
   if(wrappedWeekChartInstance){ wrappedWeekChartInstance.destroy(); wrappedWeekChartInstance = null; }
   if(wrappedGapChartInstance){ wrappedGapChartInstance.destroy(); wrappedGapChartInstance = null; }
+  if(wrappedGap2ChartInstance){ wrappedGap2ChartInstance.destroy(); wrappedGap2ChartInstance = null; }
 }
 
 function closeModalOnOverlay(e){
@@ -2018,15 +2076,17 @@ function openPlayerBreakdown(playerId){
   openModal(`<h3>${player.name}</h3><p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`);
 
   const palette = ["#4C6FFF","#E8B93F","#3FBF7F","#E2584D","#9B6FFF","#4FD1D9","#FF8FB1","#F2994A"];
+  applyChartDefaults();
   const ctx = document.getElementById("pieChart");
   pieChartInstance = new Chart(ctx, {
-    type: "pie",
+    type: "doughnut",
     data: {
       labels: usedCats.map(c=> c.label),
-      datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: palette }]
+      datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: palette, borderWidth: 0, spacing: 3, borderRadius: 6 }]
     },
     options: {
-      plugins: { legend: { position: "bottom", labels: { color: cssVar("--text"), boxWidth: 12, font: {size: 11} } } }
+      cutout: "66%",
+      plugins: { legend: legendOpts(), tooltip: glassTooltip() }
     }
   });
 }
@@ -2560,6 +2620,54 @@ function renderBoard(entries, isLive, viewedDate){
 // Baut Labels + Datensätze für den Punkteverlauf — von der kleinen Startseiten-
 // Vorschau UND vom großen Modal-Chart genutzt, damit beide immer exakt
 // dieselben Daten zeigen.
+// ===== Gemeinsame Chart-Helfer (ruhiger, heller Apple-Look) =====
+const DAILY_GOAL = 100; // Tagesziel in Punkten für die Ringe
+
+function applyChartDefaults(){
+  try {
+    if(typeof Chart === "undefined" || !Chart.defaults) return;
+    if(Chart.defaults.font){ Chart.defaults.font.family = "'Inter', system-ui, sans-serif"; Chart.defaults.font.size = 11; }
+    if(Chart.defaults.animation){ Chart.defaults.animation.duration = 800; Chart.defaults.animation.easing = "easeOutQuart"; }
+  } catch(e){}
+}
+function alphaColor(c, a){ return /^#[0-9a-f]{6}$/i.test(c) ? hexToRgba(c, a) : c; }
+function axisX(maxTicks){
+  return { ticks: { color: cssVar("--text-dim"), maxTicksLimit: maxTicks || 6, font: { size: 11 }, padding: 4 }, grid: { display: false }, border: { display: false } };
+}
+function axisY(){
+  return { beginAtZero: true, ticks: { color: cssVar("--text-dim"), maxTicksLimit: 4, font: { size: 11 }, padding: 6 }, grid: { color: alphaColor(cssVar("--grid"), 0.7), drawTicks: false }, border: { display: false } };
+}
+function glassTooltip(){
+  return {
+    backgroundColor: alphaColor(cssVar("--panel-2"), 0.96), titleColor: cssVar("--text"), bodyColor: cssVar("--text"),
+    borderColor: cssVar("--line"), borderWidth: 1, cornerRadius: 12, padding: 12, boxPadding: 5,
+    usePointStyle: true, caretSize: 0, titleFont: { weight: "600" }, bodyFont: { weight: "500" },
+  };
+}
+function legendOpts(){
+  return { position: "bottom", labels: { color: cssVar("--text"), usePointStyle: true, pointStyle: "circle", boxWidth: 8, boxHeight: 8, font: { size: 12 }, padding: 14 } };
+}
+function gradFill(color, top){
+  return (c)=>{
+    const { ctx, chartArea } = c.chart;
+    if(!chartArea) return "transparent";
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0, alphaColor(color, top || 0.22));
+    g.addColorStop(1, alphaColor(color, 0));
+    return g;
+  };
+}
+const crosshairPlugin = {
+  id: "crosshair",
+  afterDatasetsDraw(chart){
+    const act = chart.tooltip && chart.tooltip._active;
+    if(!act || !act.length) return;
+    const x = act[0].element.x, { ctx, chartArea } = chart;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom);
+    ctx.lineWidth = 1; ctx.strokeStyle = cssVar("--text-dim"); ctx.globalAlpha = 0.45; ctx.setLineDash([3, 4]); ctx.stroke(); ctx.restore();
+  }
+};
+
 function buildChartDatasets(entries, viewedDate, isLive){
   const daysInMonth = isLive ? new Date().getDate() : daysInMonthOf(viewedDate.getFullYear(), viewedDate.getMonth());
   const labels = Array.from({length: daysInMonth}, (_, i)=> i+1);
@@ -2573,35 +2681,64 @@ function buildChartDatasets(entries, viewedDate, isLive){
     });
     let running = 0;
     const cumulative = dailyTotals.map(v=> running += v);
+    const color = PLAYER_COLORS[p.id] || cssVar("--text-dim");
     return {
       label: p.name,
       data: cumulative,
-      borderColor: PLAYER_COLORS[p.id] || cssVar("--text-dim"),
-      backgroundColor: "transparent",
-      tension: 0.25,
-      pointRadius: 2,
+      borderColor: color,
+      backgroundColor: gradFill(color, 0.13),
+      fill: true,
+      borderWidth: 3,
+      tension: 0.35,
+      // Nur der aktuelle Stand bekommt einen Punkt, der Rest bleibt eine ruhige Linie
+      pointRadius: cumulative.map((_, i)=> i === cumulative.length - 1 ? 5 : 0),
+      pointHoverRadius: 6,
+      pointBackgroundColor: color,
+      pointBorderColor: cssVar("--panel"),
+      pointBorderWidth: 2,
     };
   });
 
   return { labels, datasets };
 }
 
+function trendOptions(maxTicks, big){
+  return {
+    responsive: true,
+    maintainAspectRatio: !big,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: legendOpts(),
+      tooltip: { ...glassTooltip(), callbacks: { title: (items)=> "Tag " + items[0].label } },
+    },
+    scales: { x: axisX(maxTicks), y: axisY() },
+  };
+}
+
+function renderChartHero(entries){
+  const el = document.getElementById("chartHero");
+  if(!el) return;
+  const totals = PLAYERS.map(p=> ({ p, pts: entries.filter(e=> e.player_id === p.id).reduce((s,e)=> s+e.points, 0) })).sort((a,b)=> b.pts - a.pts);
+  if(!totals[0] || totals[0].pts <= 0){ el.innerHTML = ""; return; }
+  const gap = totals[0].pts - (totals[1] ? totals[1].pts : 0);
+  const color = PLAYER_COLORS[totals[0].p.id] || "var(--text)";
+  el.innerHTML = gap === 0
+    ? `<div class="big">Gleichstand</div><div class="sub">${totals[0].pts} Pkt an der Spitze</div>`
+    : `<div class="big"><span style="color:${color}">${totals[0].p.name}</span> führt</div><div class="sub">${totals[0].pts} Pkt · +${gap} vor ${totals[1].p.name}</div>`;
+}
+
 function renderChart(entries, viewedDate, isLive){
+  applyChartDefaults();
   const { labels, datasets } = buildChartDatasets(entries, viewedDate, isLive);
+  renderChartHero(entries);
 
   const ctx = document.getElementById("trendChart");
   if(trendChart) trendChart.destroy();
   trendChart = new Chart(ctx, {
     type: "line",
     data: { labels, datasets },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: cssVar("--text"), font: { size: 11 }, boxWidth: 10 } } },
-      scales: {
-        x: { ticks: { color: cssVar("--text-dim"), maxTicksLimit: 6 }, grid: { color: cssVar("--grid") } },
-        y: { ticks: { color: cssVar("--text-dim") }, grid: { color: cssVar("--grid") } },
-      }
-    }
+    options: trendOptions(6, false),
+    plugins: [crosshairPlugin],
   });
 
   const skel = document.getElementById("chartSkeleton");
@@ -2630,6 +2767,7 @@ function buildCategoryByPlayerChart(entries){
     label: p.name,
     data: usedCats.map(c=> catTotals[c.id][p.id]),
     backgroundColor: PLAYER_COLORS[p.id],
+    borderRadius: 6, borderSkipped: false, maxBarThickness: 20,
   }));
   return { labels, datasets, usedCats };
 }
@@ -2651,7 +2789,11 @@ function buildWeekdayChart(entries){
   const hasData = totals.some(v=> v > 0);
   return {
     labels: weekdayLabels,
-    datasets: [{ label: "Punkte", data: totals, backgroundColor: cssVar("--accent") }],
+    datasets: [{
+      label: "Punkte", data: totals,
+      backgroundColor: totals.map((_, i)=> i === best && hasData ? cssVar("--accent") : alphaColor(cssVar("--accent"), 0.32)),
+      borderRadius: 10, borderSkipped: false, maxBarThickness: 34,
+    }],
     insight: hasData ? `${weekdayLabels[best]} läuft's am besten (${totals[best]} Pkt), ${weekdayLabels[worst]} am schwächsten (${totals[worst]} Pkt).` : ""
   };
 }
@@ -2662,7 +2804,7 @@ function openChartModal(){
   if(!lastViewedDate) return;
 
   const { labels, datasets } = buildChartDatasets(lastViewedEntries, lastViewedDate, lastViewedIsLive);
-  const bigDatasets = datasets.map(ds=> ({ ...ds, pointRadius: 3, borderWidth: 3 }));
+  const bigDatasets = datasets;
   const title = lastViewedIsLive
     ? "Punkteverlauf diesen Monat"
     : "Punkteverlauf " + lastViewedDate.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
@@ -2682,58 +2824,44 @@ function openChartModal(){
     <canvas id="weekdayChart" style="max-height:170px;"></canvas>
   `, true);
 
-  // Etwas größere Legenden-Schrift & Abstände — leichter mit dem Finger zu treffen,
-  // falls jemand einzelne Personen in der Legende ein-/ausblenden will.
-  const legend = { position: "bottom", labels: { color: cssVar("--text"), boxWidth: 12, font: { size: 12 }, padding: 12 } };
-  const tickColor = { color: cssVar("--text-dim"), font: { size: 11 } };
-  const gridColor = { color: cssVar("--grid") };
-
+  applyChartDefaults();
   bigChartInstance = new Chart(document.getElementById("bigChart"), {
     type: "line",
     data: { labels, datasets: bigDatasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend },
-      scales: {
-        // Bei ~30 Tagen sonst zu viele/zu enge Achsen-Beschriftungen auf schmalen Screens
-        x: { ticks: { ...tickColor, maxTicksLimit: 7 }, grid: gridColor },
-        y: { ticks: tickColor, grid: gridColor },
-      }
-    }
+    options: trendOptions(7, true),
+    plugins: [crosshairPlugin],
   });
 
   categoryChartInstance = new Chart(document.getElementById("categoryChart"), {
     type: "bar",
     data: { labels: catData.labels, datasets: catData.datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      // Horizontal statt vertikal: Kategorie-Namen sind Text und lesen sich
-      // liegend auf schmalen Handy-Screens deutlich besser als gedrehte
-      // oder abgeschnittene Achsen-Beschriftungen unten.
-      indexAxis: "y",
-      plugins: { legend },
-      scales: {
-        x: { stacked: true, ticks: tickColor, grid: gridColor },
-        y: { stacked: true, ticks: { ...tickColor, autoSkip: false }, grid: { display: false } },
-      }
-    }
+    options: categoryOptions(),
   });
 
   weekdayChartInstance = new Chart(document.getElementById("weekdayChart"), {
     type: "bar",
     data: weekData,
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: tickColor, grid: gridColor },
-        y: { ticks: tickColor, grid: gridColor },
-      }
-    }
+    options: weekdayOptions(),
   });
+}
+
+function categoryOptions(){
+  return {
+    responsive: true, maintainAspectRatio: false, indexAxis: "y",
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: legendOpts(), tooltip: glassTooltip() },
+    scales: {
+      x: { stacked: true, ticks: { color: cssVar("--text-dim"), maxTicksLimit: 5, font: { size: 11 } }, grid: { color: alphaColor(cssVar("--grid"), 0.7), drawTicks: false }, border: { display: false } },
+      y: { stacked: true, ticks: { color: cssVar("--text"), autoSkip: false, font: { size: 12 } }, grid: { display: false }, border: { display: false } },
+    },
+  };
+}
+function weekdayOptions(){
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: glassTooltip() },
+    scales: { x: axisX(7), y: axisY() },
+  };
 }
 
 function renderFeed(entries){
@@ -2815,6 +2943,32 @@ function backToLive(){
   applyView();
 }
 
+
+// ===== Tagesziel-Ringe (Apple-Fitness-Stil) =====
+function renderRings(isLive){
+  const sec = document.getElementById("ringsSection");
+  if(!sec) return;
+  if(!isLive){ sec.style.display = "none"; return; }
+  sec.style.display = "";
+  const { start, end } = dayBounds();
+  const radii = [58, 44, 30];
+  const svg = document.getElementById("ringsSvg");
+  let html = "", legend = "";
+  PLAYERS.forEach((p, i)=>{
+    const pts = allEntries.filter(e=> e.player_id === p.id && new Date(e.created_at) >= start && new Date(e.created_at) < end).reduce((s,e)=> s+e.points, 0);
+    const r = radii[i] || 20, c = 2 * Math.PI * r, pct = Math.max(0, Math.min(1, pts / DAILY_GOAL));
+    const color = PLAYER_COLORS[p.id] || "#4C6FFF";
+    html += `<circle class="ring-track" cx="70" cy="70" r="${r}"/>`
+          + `<circle class="ring-prog" cx="70" cy="70" r="${r}" stroke="${color}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${c.toFixed(2)}" data-target="${(c * (1 - pct)).toFixed(2)}" transform="rotate(-90 70 70)"/>`;
+    legend += `<div class="ring-row"><span class="ring-dot" style="background:${color}"></span><span class="ring-name">${p.name}</span><span class="ring-val">${pts}<small> / ${DAILY_GOAL}${pts >= DAILY_GOAL ? " ✓" : ""}</small></span></div>`;
+  });
+  svg.innerHTML = html;
+  document.getElementById("ringsLegend").innerHTML = legend + `<div class="rings-goal">Tagesziel: ${DAILY_GOAL} Punkte</div>`;
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    svg.querySelectorAll(".ring-prog").forEach(c=> c.setAttribute("stroke-dashoffset", c.dataset.target));
+  }));
+}
+
 function applyView(){
   const nowKey = monthKey(new Date());
   const isLive = viewedMonthKey === nowKey;
@@ -2840,6 +2994,7 @@ function applyView(){
   renderCats();
   renderWallet();
   renderHeatmap();
+  renderRings(isLive);
   updateTicker();
   if(isLive){
     maybeCelebrateMonthWin();
