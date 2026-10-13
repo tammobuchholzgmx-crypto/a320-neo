@@ -2292,6 +2292,16 @@ function closeModalOnOverlay(e){
   if(e.target.id === "modalOverlay") closeModal();
 }
 
+// Feste Farbe pro Kategorie, damit Kuchendiagramme verschiedener Personen vergleichbar sind.
+const CATEGORY_COLORS = {
+  bett: "#8E9AAF", sport: "#E2584D", dehnen: "#9B6FFF", journaln: "#FF8FB1", aufraeumen: "#4FD1D9",
+  cardio: "#F2994A", schritte: "#3FBF7F", lesen: "#4C6FFF",
+  screentime_u2: "#E8B93F", screentime_u3: "#C99A2E", screentime_u4: "#A97E22",
+  screentime_ziel: "#E8B93F", screentime_besser: "#A97E22",
+  [BONUS_CATEGORY_ID]: "#D6D3E8",
+};
+function categoryColor(id){ return CATEGORY_COLORS[id] || "#8E9AAF"; }
+
 // Klick auf eine Spieler-Karte: Kuchendiagramm, wie sich die Punkte im
 // gerade angezeigten Zeitraum (aktueller Monat oder Archiv-Monat) zusammensetzen.
 function openPlayerBreakdown(playerId){
@@ -2311,14 +2321,13 @@ function openPlayerBreakdown(playerId){
 
   openModal(`<h3>${player.name}</h3><p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`);
 
-  const palette = ["#4C6FFF","#E8B93F","#3FBF7F","#E2584D","#9B6FFF","#4FD1D9","#FF8FB1","#F2994A"];
   applyChartDefaults();
   const ctx = document.getElementById("pieChart");
   pieChartInstance = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: usedCats.map(c=> c.label),
-      datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: palette, borderWidth: 0, spacing: 3, borderRadius: 6 }]
+      datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: usedCats.map(c=> categoryColor(c.id)), borderWidth: 0, spacing: 3, borderRadius: 6 }]
     },
     options: {
       cutout: "66%",
