@@ -1759,6 +1759,7 @@ let wrappedWeekChartInstance = null;
 let wrappedGapChartInstance = null;
 let wrappedGap2ChartInstance = null;
 let pieChartInstance = null;
+let pieChartDayInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
 let lastViewedEntries = []; // die Einträge, die gerade im Board/Feed angezeigt werden (für Klick auf Spieler)
 let lastViewedDate = null;  // der Monat (als Date), der gerade angezeigt wird
@@ -2279,6 +2280,7 @@ function closeModal(){
   document.getElementById("modalContent").innerHTML = "";
   document.getElementById("modalBox").classList.remove("wide");
   if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance = null; }
+  if(pieChartDayInstance){ pieChartDayInstance.destroy(); pieChartDayInstance = null; }
   if(bigChartInstance){ bigChartInstance.destroy(); bigChartInstance = null; }
   if(categoryChartInstance){ categoryChartInstance.destroy(); categoryChartInstance = null; }
   if(weekdayChartInstance){ weekdayChartInstance.destroy(); weekdayChartInstance = null; }
@@ -2308,32 +2310,61 @@ function openPlayerBreakdown(playerId){
   const player = PLAYERS.find(p=> p.id === playerId);
   const entries = lastViewedEntries.filter(e=> e.player_id === playerId);
 
-  const totalsByCategory = {};
-  CHART_CATEGORIES.forEach(c=> totalsByCategory[c.id] = 0);
-  entries.forEach(e=> totalsByCategory[e.category] = (totalsByCategory[e.category] || 0) + e.points);
-
-  const usedCats = CHART_CATEGORIES.filter(c=> totalsByCategory[c.id] > 0);
+  const totalsOf = list=>{
+    const t = {};
+    CHART_CATEGORIES.forEach(c=> t[c.id] = 0);
+    list.forEach(e=> t[e.category] = (t[e.category] || 0) + e.points);
+    return t;
+  };
+  const totals = totalsOf(entries);
+  const usedCats = CHART_CATEGORIES.filter(c=> totals[c.id] > 0);
 
   if(usedCats.length === 0){
     openModal(`<h3>${player.name}</h3><p class="modal-sub">Noch keine Punkte in diesem Zeitraum.</p>`);
     return;
   }
 
-  openModal(`<h3>${player.name}</h3><p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`);
+  // Heute nur im aktuellen Monat sinnvoll; im Archiv gibt es nur die Gesamtansicht.
+  const showDay = lastViewedIsLive;
+  const todayKey = dayKeyLocal(new Date());
+  const dayTotals = showDay ? totalsOf(entries.filter(e=> dayKeyLocal(new Date(e.created_at)) === todayKey)) : null;
+  const dayCats = showDay ? CHART_CATEGORIES.filter(c=> dayTotals[c.id] > 0) : [];
+  const sum = t=> Object.values(t).reduce((a, b)=> a + b, 0);
+
+  const pieBox = id=> `<div style="position:relative;max-width:320px;width:100%;margin:0 auto"><canvas id="${id}"></canvas></div>`;
+  const pageAll = `<div class="story-kicker">Gesamt · ${lastViewedDate.toLocaleDateString('de-DE', {month:'long'})} · ${sum(totals)} Pkt</div>${pieBox("pieChart")}`;
+  const pageDay = showDay ? `<div class="story-kicker">Heute · ${sum(dayTotals)} Pkt</div>${
+    dayCats.length ? pieBox("pieChartDay") : `<div class="story-sub" style="text-align:center">Heute noch keine Punkte.</div>`}` : "";
+
+  if(!showDay){
+    openModal(`<h3>${player.name}</h3><p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`);
+  } else {
+    const pages = [pageAll, pageDay];
+    openModal(`
+      <h3>${player.name}</h3>
+      <p class="modal-sub">Punkteverteilung nach Kategorie · wisch für heute</p>
+      <div class="story">
+        <div class="story-track" id="storyTrack" onscroll="onStoryScroll()">
+          ${pages.map(h=> `<div class="story-page">${h}</div>`).join("")}
+        </div>
+        <div class="story-dots" id="storyDots">${pages.map((_, i)=> `<button class="${i===0?"on":""}" onclick="goStory(${i})" aria-label="${i ? "Heute" : "Gesamt"}"></button>`).join("")}</div>
+      </div>`);
+  }
 
   applyChartDefaults();
-  const ctx = document.getElementById("pieChart");
-  pieChartInstance = new Chart(ctx, {
+  const makePie = (id, t, cats)=> new Chart(document.getElementById(id), {
     type: "doughnut",
     data: {
-      labels: usedCats.map(c=> c.label),
-      datasets: [{ data: usedCats.map(c=> totalsByCategory[c.id]), backgroundColor: usedCats.map(c=> categoryColor(c.id)), borderWidth: 0, spacing: 3, borderRadius: 6 }]
+      labels: cats.map(c=> c.label),
+      datasets: [{ data: cats.map(c=> t[c.id]), backgroundColor: cats.map(c=> categoryColor(c.id)), borderWidth: 0, spacing: 3, borderRadius: 6 }]
     },
     options: {
       cutout: "66%",
       plugins: { legend: legendOpts(), tooltip: glassTooltip() }
     }
   });
+  pieChartInstance = makePie("pieChart", totals, usedCats);
+  if(showDay && dayCats.length) pieChartDayInstance = makePie("pieChartDay", dayTotals, dayCats);
 }
 
 // Bearbeiten geht nur bei numerischen Kategorien (Lesen, Schritte, Cardio) —
