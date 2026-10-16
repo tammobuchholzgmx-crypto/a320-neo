@@ -3185,7 +3185,7 @@ function setupChartZoom(chart, total){
       sizes.map(n=> `<button data-z="${n}" class="${zoomed && w === n && max === last ? "on" : ""}">${n} Tage</button>`).join("") +
       `<button class="zoom-arrow" data-z="next" aria-label="Später" ${zoomed && max < last ? "" : "disabled"}>›</button>`;
     hint.textContent = zoomed
-      ? `${min + 1}. bis ${max + 1}. · tippe auf den Graphen zum weiter Zoomen`
+      ? `${min + 1}. bis ${max + 1}. · ${sizes.some(n=> n < w) ? "tippe auf den Graphen zum weiter Zoomen" : "„Alles“ zoomt wieder raus"}`
       : "Tippe auf den Graphen, um näher ranzuzoomen";
   };
   bar.onclick = e=>{
@@ -3199,7 +3199,7 @@ function setupChartZoom(chart, total){
   chart.options.onClick = (evt)=>{
     const w = max - min + 1;
     const next = sizes.find(n=> n < w);
-    if(!next){ apply(0, last); return; }
+    if(!next) return; // tiefste Stufe erreicht: Tippen zeigt nur den Tooltip, rauszoomen per Chip
     let c = Math.round(chart.scales.x.getValueForPixel(evt.x));
     if(!Number.isFinite(c)) c = Math.round((min + max) / 2);
     c = Math.max(min, Math.min(max, c));
