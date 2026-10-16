@@ -3358,7 +3358,7 @@ function renderHeatmap(){
     if(v>0){ activeDays++; total += v; }
     const lv = level(v);
     const isToday = d.getTime() === today.getTime();
-    cells += `<div class="heat-cell${isToday?" today":""}" title="${wd[idx]} ${d.toLocaleDateString('de-DE')}: ${v} Punkte" onclick="showToast('${wd[idx]} ${d.toLocaleDateString('de-DE')}: ${v} Punkte')" style="${lv ? `background:${hexToRgba(color, alphas[lv])}` : ""}"></div>`;
+    cells += `<div class="heat-cell${isToday?" today":""}" title="${wd[idx]} ${d.toLocaleDateString('de-DE')}: ${v} Punkte" onclick="openDayBreakdown('${k}')" style="${lv ? `background:${hexToRgba(color, alphas[lv])}` : ""}"></div>`;
   }
   grid.innerHTML = cells;
   document.getElementById("heatMonths").innerHTML = months;
@@ -3366,6 +3366,38 @@ function renderHeatmap(){
   document.getElementById("heatLegend").innerHTML = `weniger ${[0,1,2,3,4].map(l=> `<i style="background:${l ? hexToRgba(color, alphas[l]) : "var(--panel-2)"}"></i>`).join("")} mehr`;
   const sc = document.getElementById("heatScroll");
   if(sc) sc.scrollLeft = sc.scrollWidth; // heute rechts sichtbar
+}
+
+// Klick auf einen Tag in der Jahresübersicht: Punkte-Zusammensetzung dieses Tages
+// für die gerade gewählte Person (alle Monate, nicht nur der angezeigte).
+function openDayBreakdown(dayKey){
+  const player = PLAYERS.find(p=> p.id === heatPlayer) || PLAYERS[0];
+  const [y, m, d] = dayKey.split("-").map(Number);
+  const date = new Date(y, m-1, d);
+  const title = date.toLocaleDateString('de-DE', { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+
+  const totals = {};
+  allEntries.forEach(e=>{
+    if(e.player_id !== player.id || dayKeyLocal(new Date(e.created_at)) !== dayKey) return;
+    totals[e.category] = (totals[e.category] || 0) + e.points;
+  });
+  const cats = CHART_CATEGORIES.filter(c=> totals[c.id] > 0);
+  const sum = cats.reduce((a, c)=> a + totals[c.id], 0);
+
+  if(!cats.length){
+    openModal(`<h3>${player.name}</h3><p class="modal-sub">${title}</p><p class="modal-sub">Keine Punkte an diesem Tag.</p>`);
+    return;
+  }
+  openModal(`<h3>${player.name}</h3><p class="modal-sub">${title} · ${sum} Pkt</p><canvas id="pieChart"></canvas>`);
+  applyChartDefaults();
+  pieChartInstance = new Chart(document.getElementById("pieChart"), {
+    type: "doughnut",
+    data: {
+      labels: cats.map(c=> c.label),
+      datasets: [{ data: cats.map(c=> totals[c.id]), backgroundColor: cats.map(c=> categoryColor(c.id)), borderWidth: 0, spacing: 3, borderRadius: 6 }]
+    },
+    options: { cutout: "66%", plugins: { legend: legendOpts(), tooltip: glassTooltip() } }
+  });
 }
 
 function subscribeRealtime(){
