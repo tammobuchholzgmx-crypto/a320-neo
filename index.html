@@ -1060,6 +1060,14 @@
   .story-dots button.on{ background:var(--accent); width:20px; border-radius:99px; }
 
 
+  /* ===== Zoom im Punkteverlauf ===== */
+  .zoom-bar{ display:flex; gap:6px; margin:2px 0 10px; }
+  .zoom-bar button{ flex:1 1 auto; border:1px solid var(--line); background:var(--panel-2); color:var(--text-dim); font:600 12px 'Inter',sans-serif; padding:7px 4px; border-radius:9px; cursor:pointer; }
+  .zoom-bar button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .zoom-bar button:disabled{ opacity:.35; cursor:default; }
+  .zoom-bar .zoom-arrow{ flex:0 0 34px; font-size:16px; line-height:1; padding:5px 0; }
+  .zoom-hint{ margin:8px 0 0; font-size:11px; color:var(--text-dim); text-align:center; }
+
   /* ===== Layout anpassen ===== */
   .month-nav > .notif-btn, .month-nav > .wrapped-btn{ flex:0 0 auto; white-space:nowrap; }
   .month-nav > select{ flex:1 1 0; min-width:0; text-overflow:ellipsis; }
@@ -3099,7 +3107,9 @@ function openChartModal(){
 
   openModal(`
     <h3>${title}</h3>
+    <div class="zoom-bar" id="zoomBar"></div>
     <canvas id="bigChart" style="max-height:230px;"></canvas>
+    <p class="zoom-hint" id="zoomHint"></p>
 
     <h3 style="margin-top:20px;">Wer trägt welche Kategorie</h3>
     <canvas id="categoryChart" style="max-height:${Math.max(140, catData.labels.length * 42)}px;"></canvas>
@@ -3110,12 +3120,19 @@ function openChartModal(){
   `, true);
 
   applyChartDefaults();
+  const bigOpts = trendOptions(7, true);
+  bigOpts.plugins.tooltip.callbacks.label = (item)=>{
+    const d = item.dataset.data, i = item.dataIndex;
+    const gain = d[i] - (i > 0 ? d[i-1] : 0);
+    return ` ${item.dataset.label}: ${item.formattedValue}${gain ? ` (+${gain})` : ""}`;
+  };
   bigChartInstance = new Chart(document.getElementById("bigChart"), {
     type: "line",
     data: { labels, datasets: bigDatasets },
-    options: trendOptions(7, true),
+    options: bigOpts,
     plugins: [crosshairPlugin],
   });
+  setupChartZoom(bigChartInstance, labels.length);
 
   categoryChartInstance = new Chart(document.getElementById("categoryChart"), {
     type: "bar",
@@ -3128,6 +3145,68 @@ function openChartModal(){
     data: weekData,
     options: weekdayOptions(),
   });
+}
+
+// Zoom im großen Punkteverlauf: Tippen auf den Graphen zoomt an die getippte Stelle
+// (Monat → 14 → 7 → 3 Tage → zurück), die Chips springen auf die letzten N Tage.
+function setupChartZoom(chart, total){
+  const last = total - 1;
+  const sizes = [14, 7, 3].filter(n=> n < total);
+  let min = 0, max = last;
+  const bar = document.getElementById("zoomBar"), hint = document.getElementById("zoomHint");
+  if(!sizes.length){ bar.style.display = "none"; hint.style.display = "none"; return; }
+
+  const apply = (lo, hi)=>{
+    const w = Math.min(total, Math.max(1, hi - lo + 1));
+    lo = Math.max(0, Math.min(lo, total - w)); hi = lo + w - 1;
+    min = lo; max = hi;
+    const x = chart.options.scales.x, y = chart.options.scales.y;
+    const zoomed = w < total;
+    // Category-Achse: min/max werden als Label-Wert gelesen (Labels sind 1..N), nicht als Index.
+    x.min = zoomed ? chart.data.labels[lo] : undefined; x.max = zoomed ? chart.data.labels[hi] : undefined;
+    x.ticks.maxTicksLimit = zoomed ? Math.min(w, 8) : 7;
+    if(zoomed){
+      let vlo = Infinity, vhi = -Infinity;
+      chart.data.datasets.forEach(ds=> { for(let i = lo; i <= hi; i++){ vlo = Math.min(vlo, ds.data[i]); vhi = Math.max(vhi, ds.data[i]); } });
+      const pad = Math.max(5, (vhi - vlo) * 0.15);
+      y.beginAtZero = false; y.min = Math.max(0, Math.floor(vlo - pad)); y.max = Math.ceil(vhi + pad);
+    } else { y.beginAtZero = true; y.min = undefined; y.max = undefined; }
+    chart.data.datasets.forEach(ds=>{
+      ds.pointRadius = ds.data.map((_, i)=> (zoomed && w <= 14) ? 3 : (i === total - 1 ? 5 : 0));
+    });
+    chart.update();
+    render();
+  };
+  const render = ()=>{
+    const w = max - min + 1, zoomed = w < total;
+    bar.innerHTML =
+      `<button class="zoom-arrow" data-z="prev" aria-label="Früher" ${zoomed && min > 0 ? "" : "disabled"}>‹</button>` +
+      `<button data-z="all" class="${zoomed ? "" : "on"}">Alles</button>` +
+      sizes.map(n=> `<button data-z="${n}" class="${zoomed && w === n && max === last ? "on" : ""}">${n} Tage</button>`).join("") +
+      `<button class="zoom-arrow" data-z="next" aria-label="Später" ${zoomed && max < last ? "" : "disabled"}>›</button>`;
+    hint.textContent = zoomed
+      ? `${min + 1}. bis ${max + 1}. · tippe auf den Graphen zum weiter Zoomen`
+      : "Tippe auf den Graphen, um näher ranzuzoomen";
+  };
+  bar.onclick = e=>{
+    const b = e.target.closest("button[data-z]"); if(!b || b.disabled) return;
+    const z = b.dataset.z, w = max - min + 1;
+    if(z === "all") apply(0, last);
+    else if(z === "prev") apply(min - Math.max(1, Math.floor(w / 2)), max - Math.max(1, Math.floor(w / 2)));
+    else if(z === "next") apply(min + Math.max(1, Math.floor(w / 2)), max + Math.max(1, Math.floor(w / 2)));
+    else apply(last - Number(z) + 1, last);
+  };
+  chart.options.onClick = (evt)=>{
+    const w = max - min + 1;
+    const next = sizes.find(n=> n < w);
+    if(!next){ apply(0, last); return; }
+    let c = Math.round(chart.scales.x.getValueForPixel(evt.x));
+    if(!Number.isFinite(c)) c = Math.round((min + max) / 2);
+    c = Math.max(min, Math.min(max, c));
+    const lo = c - Math.floor(next / 2);
+    apply(lo, lo + next - 1);
+  };
+  render();
 }
 
 function categoryOptions(){
