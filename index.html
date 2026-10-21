@@ -3209,11 +3209,24 @@ function setupChartZoom(chart, total){
   render();
 }
 
+// Tooltip hängt am Cursor statt am Balkenmittelpunkt: springt nicht mehr hin und her.
+Chart.Tooltip.positioners.cursor = (items, pos)=> pos;
+function stableTooltip(extra){
+  return { ...glassTooltip(), position: "cursor", animation: { duration: 0 }, yAlign: "bottom", ...extra };
+}
+
 function categoryOptions(){
   return {
     responsive: true, maintainAspectRatio: false, indexAxis: "y",
-    interaction: { mode: "index", intersect: false },
-    plugins: { legend: legendOpts(), tooltip: glassTooltip() },
+    // Nur das berührte Segment (eine Person in einer Kategorie), nicht alle drei auf einmal.
+    interaction: { mode: "nearest", intersect: true },
+    hover: { animationDuration: 0 },
+    plugins: { legend: legendOpts(), tooltip: stableTooltip({
+      callbacks: {
+        title: (items)=> items[0].label,
+        label: (item)=> ` ${item.dataset.label}: ${item.formattedValue} Pkt`,
+      },
+    }) },
     scales: {
       x: { stacked: true, ticks: { color: cssVar("--text-dim"), maxTicksLimit: 5, font: { size: 11 } }, grid: { color: alphaColor(cssVar("--grid"), 0.7), drawTicks: false }, border: { display: false } },
       y: { stacked: true, ticks: { color: cssVar("--text"), autoSkip: false, font: { size: 12 } }, grid: { display: false }, border: { display: false } },
@@ -3223,7 +3236,8 @@ function categoryOptions(){
 function weekdayOptions(){
   return {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: glassTooltip() },
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: { display: false }, tooltip: stableTooltip() },
     scales: { x: axisX(7), y: axisY() },
   };
 }
