@@ -1226,7 +1226,7 @@
     <div class="lay-head">Bereiche</div>
     <div class="lay-list" id="layMods"></div>
     <div class="lay-head">Kategorien beim Eintragen</div>
-    <div class="lay-note">Zwei „Halb“-Kategorien hintereinander stehen nebeneinander.</div>
+    <div class="lay-note">Zwei „Halb“-Kategorien hintereinander stehen nebeneinander. Die Wochen-Kategorien siehst du wie bisher nur montags.</div>
     <div class="lay-list" id="layCats"></div>
     <div class="lay-actions">
       <button class="lay-reset" id="layReset" onclick="resetLayout()">Zurücksetzen</button>
@@ -1267,9 +1267,9 @@ const CATEGORIES = [
   { id: "lesen",                    label: "Lesen",                                       type: "numeric", unitLabel: "Minuten", unitSize: 1, pointsPerUnit: 1 },
   // Entfernt: nur noch für bestehende Einträge (Anzeige/Charts), nicht mehr eintragbar.
   { id: "screentime_besser",         label: "Social Media: 30 Min weniger als letzte Woche", type: "flat",  points: 10, limit: "week-monday", maxPerPeriod: Infinity, hidden: true },
-  { id: "screentime_u2",             label: "Social Media Tagesschnitt unter 2h",           type: "flat",  points: 25, limit: "day", group: "screentime_tier" },
-  { id: "screentime_u3",             label: "Social Media Tagesschnitt unter 3h",           type: "flat",  points: 15, limit: "day", group: "screentime_tier" },
-  { id: "screentime_u4",             label: "Social Media Tagesschnitt unter 4h",           type: "flat",  points: 5, limit: "day", group: "screentime_tier" },
+  { id: "screentime_u2",             label: "Social-Media-Wochenschnitt unter 2h",          type: "flat",  points: 180, limit: "week-monday", group: "screentime_tier" },
+  { id: "screentime_u3",             label: "Social-Media-Wochenschnitt unter 3h",          type: "flat",  points: 100, limit: "week-monday", group: "screentime_tier" },
+  { id: "screentime_u4",             label: "Social-Media-Wochenschnitt unter 4h",          type: "flat",  points: 50,  limit: "week-monday", group: "screentime_tier" },
   // Alte Stufe (früher 50 Punkte für unter 2h): nur noch für bestehende Einträge, nicht mehr eintragbar.
   { id: "screentime_ziel",           label: "Social-Media-Wochenschnitt unter 2h (alt)",    type: "flat",  points: 50, limit: "week-monday", group: "screentime_tier", hidden: true },
 ];
@@ -1590,7 +1590,7 @@ function renderLayoutEditor(){
     const ctrl = c.type === "flat"
       ? `<div class="lay-seg"><button class="${half ? "" : "on"}" data-act="size" data-id="${id}" data-v="full">Breit</button><button class="${half ? "on" : ""}" data-act="size" data-id="${id}" data-v="half">Halb</button></div>`
       : `<span class="lay-fixed">immer breit</span>`;
-    const label = c.label;
+    const label = c.label.replace("Social-Media-Wochenschnitt ", "Social Media ");
     return `<div class="lay-row" data-id="${id}"><button class="lay-handle" aria-label="${label} verschieben">${GRIP_SVG}</button><div class="lay-name"><b>${label}</b><small>${sub}</small></div>${ctrl}</div>`;
   }).join("");
 }
