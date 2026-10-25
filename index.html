@@ -2177,8 +2177,11 @@ function sparkChart(canvasId, data, color, labels){
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { label: (it)=> `${it.parsed.y} Pkt Abstand` } } },
-      scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
+      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { title: (items)=> items[0].label, label: (it)=> `Vorsprung: ${it.parsed.y} Pkt` } } },
+      scales: {
+        x: { display: true, grid: { display: false }, border: { display: false }, ticks: { color: cssVar("--text-dim"), font: { size: 11 }, padding: 4 } },
+        y: { display: false, beginAtZero: true },
+      },
     },
   });
 }
@@ -2209,8 +2212,9 @@ function renderWrapped(w){
 
   const page3 = ranked.length >= 3 ? `
     <div class="story-kicker">Abstand zwischen den Plätzen</div>
-    <div class="story-tile"><div class="lbl">${ranked[0].p.name} vor ${ranked[1].p.name}</div><div class="big" style="color:#E8B93F">+${gap12}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
-    <div class="story-tile"><div class="lbl">${ranked[1].p.name} vor ${ranked[2].p.name}</div><div class="big" style="color:#4C6FFF">+${gap23}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
+    <div class="story-sub" style="margin:0 0 12px;font-size:13px">So viele Punkte liegt der Bessere vorne, gemessen am Ende jedes Tages der Woche. Geht die Linie nach oben, wächst der Vorsprung.</div>
+    <div class="story-tile"><div class="lbl">${ranked[0].p.name} vor ${ranked[1].p.name} · jetzt</div><div class="big" style="color:#E8B93F">+${gap12}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
+    <div class="story-tile"><div class="lbl">${ranked[1].p.name} vor ${ranked[2].p.name} · jetzt</div><div class="big" style="color:#4C6FFF">+${gap23}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
 
   const pages = [
     page1, page2, page3,
