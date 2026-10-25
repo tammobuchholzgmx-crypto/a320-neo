@@ -2172,11 +2172,13 @@ function buildWrapped(weekStart){
   const cumM = {}; PLAYERS.forEach(p=>{ let r = 0; cumM[p.id] = perDay[p.id].map(v=> r += v); });
   const order = PLAYERS.map(p=> p).sort((a,b)=> cumM[b.id][nDays-1] - cumM[a.id][nDays-1]);
   const diff = (x, y)=> cumM[x.id].map((v, i)=> v - cumM[y.id][i]);
+  // Gerechnet wird mit dem Monatsstand, angezeigt wird nur die Woche (Mo–So).
+  const off = Math.round((start - monthStart) / 86400000);
   const monthGap = {
     order,
-    ab: diff(order[0], order[1]),
-    bc: order[2] ? diff(order[1], order[2]) : [],
-    labels: Array.from({length: nDays}, (_, i)=> String(i+1)),
+    ab: diff(order[0], order[1]).slice(off),
+    bc: order[2] ? diff(order[1], order[2]).slice(off) : [],
+    labels: dayLabels.slice(0, nDays - off),
   };
 
   return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, gapSeries23, dayLabels, monthGap };
@@ -2200,7 +2202,7 @@ function sparkChart(canvasId, data, color, labels){
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { title: (items)=> "Tag " + items[0].label, label: (it)=> `Vorsprung: ${it.parsed.y} Pkt` } } },
+      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { title: (items)=> items[0].label, label: (it)=> `Vorsprung: ${it.parsed.y} Pkt` } } },
       scales: {
         x: { display: true, grid: { display: false }, border: { display: false }, ticks: { color: cssVar("--text-dim"), font: { size: 11 }, padding: 4, maxTicksLimit: 6, maxRotation: 0 } },
         y: { display: true, beginAtZero: true, ticks: { display: false }, border: { display: false },
@@ -2238,7 +2240,6 @@ function renderWrapped(w){
   const fmtGap = g=> (g < 0 ? "−" : "+") + Math.abs(g);
   const page3 = (mg && mg.order.length >= 3) ? `
     <div class="story-kicker">Abstand zwischen den Plätzen</div>
-    <div class="story-sub" style="margin:0 0 12px;font-size:13px">Punktestand im Monat: so viele Punkte liegt der Bessere vorne, am Ende jedes Tages. Geht die Linie nach oben, wächst der Vorsprung. Unter der 0 lag der andere vorn.</div>
     <div class="story-tile"><div class="lbl">${mg.order[0].name} vor ${mg.order[1].name} · Stand Sonntag</div><div class="big" style="color:#E8B93F">${fmtGap(mg.ab[mg.ab.length-1])}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
     <div class="story-tile"><div class="lbl">${mg.order[1].name} vor ${mg.order[2].name} · Stand Sonntag</div><div class="big" style="color:#4C6FFF">${fmtGap(mg.bc[mg.bc.length-1])}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
 
