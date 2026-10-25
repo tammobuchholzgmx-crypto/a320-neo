@@ -1053,7 +1053,7 @@
   .story-tile{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:12px; }
   .story-tile .big{ font-size:30px; font-weight:800; letter-spacing:-0.03em; line-height:1.1; }
   .story-tile .lbl{ font-size:12px; color:var(--text-dim); margin-bottom:4px; }
-  .story-spark{ position:relative; height:64px; margin-top:8px; }
+  .story-spark{ position:relative; height:92px; margin-top:8px; }
   .story-chart{ position:relative; height:240px; margin-top:6px; }
   .story-dots{ display:flex; justify-content:center; gap:7px; margin:14px 0 2px; }
   .story-dots button{ width:7px; height:7px; border-radius:50%; border:0; padding:0; background:var(--grid); cursor:pointer; transition:all .25s; }
@@ -2156,7 +2156,30 @@ function buildWrapped(weekStart){
   const prevTotal = prevWeekEntries.reduce((s,e)=> s+e.points, 0);
   const change = prevTotal > 0 ? Math.round(((thisTotal - prevTotal) / prevTotal) * 100) : null;
 
-  return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, gapSeries23, dayLabels };
+  // Abstand zwischen den Plätzen über den ganzen Monat (Monatsstand, nicht nur Wochenpunkte):
+  // vom 1. des Monats bis Sonntag dieser Woche bzw. Monatsende, jeweils am Ende jedes Tages.
+  const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
+  const lastDay = new Date(start); lastDay.setDate(lastDay.getDate()+6);
+  const monthEndDay = new Date(start.getFullYear(), start.getMonth()+1, 0);
+  const endDay = lastDay < monthEndDay ? lastDay : monthEndDay;
+  const nDays = Math.round((endDay - monthStart) / 86400000) + 1;
+  const perDay = {}; PLAYERS.forEach(p=> perDay[p.id] = new Array(nDays).fill(0));
+  allEntries.forEach(e=>{
+    const d = new Date(e.created_at);
+    const idx = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - monthStart) / 86400000);
+    if(idx >= 0 && idx < nDays && perDay[e.player_id]) perDay[e.player_id][idx] += e.points;
+  });
+  const cumM = {}; PLAYERS.forEach(p=>{ let r = 0; cumM[p.id] = perDay[p.id].map(v=> r += v); });
+  const order = PLAYERS.map(p=> p).sort((a,b)=> cumM[b.id][nDays-1] - cumM[a.id][nDays-1]);
+  const diff = (x, y)=> cumM[x.id].map((v, i)=> v - cumM[y.id][i]);
+  const monthGap = {
+    order,
+    ab: diff(order[0], order[1]),
+    bc: order[2] ? diff(order[1], order[2]) : [],
+    labels: Array.from({length: nDays}, (_, i)=> String(i+1)),
+  };
+
+  return { start, weekEntries, totals, mvp, biggestJump, bestGroupDay, bestGroupPts, change, gapSeries, gapSeries23, dayLabels, monthGap };
 }
 
 function onStoryScroll(){
@@ -2177,10 +2200,11 @@ function sparkChart(canvasId, data, color, labels){
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { title: (items)=> items[0].label, label: (it)=> `Vorsprung: ${it.parsed.y} Pkt` } } },
+      plugins: { legend: { display: false }, tooltip: { ...glassTooltip(), displayColors: false, callbacks: { title: (items)=> "Tag " + items[0].label, label: (it)=> `Vorsprung: ${it.parsed.y} Pkt` } } },
       scales: {
-        x: { display: true, grid: { display: false }, border: { display: false }, ticks: { color: cssVar("--text-dim"), font: { size: 11 }, padding: 4 } },
-        y: { display: false, beginAtZero: true },
+        x: { display: true, grid: { display: false }, border: { display: false }, ticks: { color: cssVar("--text-dim"), font: { size: 11 }, padding: 4, maxTicksLimit: 6, maxRotation: 0 } },
+        y: { display: true, beginAtZero: true, ticks: { display: false }, border: { display: false },
+             grid: { drawTicks: false, color: (c)=> c.tick && c.tick.value === 0 ? alphaColor(cssVar("--text-dim"), 0.45) : "transparent" } },
       },
     },
   });
@@ -2210,11 +2234,13 @@ function renderWrapped(w){
     ${(w.biggestJump.player && w.biggestJump.pts > 0) ? `<div class="story-tile"><div class="lbl">Größter Sprung an einem Tag</div><div class="big" style="color:${colorOf(w.biggestJump.player)}">+${w.biggestJump.pts}</div><div class="lbl" style="margin:4px 0 0">${w.biggestJump.player.name} · ${w.biggestJump.dayLabel}</div></div>` : ""}
     ${(w.bestGroupDay && w.bestGroupPts > 0) ? `<div class="story-tile"><div class="lbl">Fleißigster Tag zusammen</div><div class="big">${w.bestGroupDay}</div><div class="lbl" style="margin:4px 0 0">${w.bestGroupPts} Punkte von euch dreien</div></div>` : ""}`;
 
-  const page3 = ranked.length >= 3 ? `
+  const mg = w.monthGap;
+  const fmtGap = g=> (g < 0 ? "−" : "+") + Math.abs(g);
+  const page3 = (mg && mg.order.length >= 3) ? `
     <div class="story-kicker">Abstand zwischen den Plätzen</div>
-    <div class="story-sub" style="margin:0 0 12px;font-size:13px">So viele Punkte liegt der Bessere vorne, gemessen am Ende jedes Tages der Woche. Geht die Linie nach oben, wächst der Vorsprung.</div>
-    <div class="story-tile"><div class="lbl">${ranked[0].p.name} vor ${ranked[1].p.name} · jetzt</div><div class="big" style="color:#E8B93F">+${gap12}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
-    <div class="story-tile"><div class="lbl">${ranked[1].p.name} vor ${ranked[2].p.name} · jetzt</div><div class="big" style="color:#4C6FFF">+${gap23}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
+    <div class="story-sub" style="margin:0 0 12px;font-size:13px">Punktestand im Monat: so viele Punkte liegt der Bessere vorne, am Ende jedes Tages. Geht die Linie nach oben, wächst der Vorsprung. Unter der 0 lag der andere vorn.</div>
+    <div class="story-tile"><div class="lbl">${mg.order[0].name} vor ${mg.order[1].name} · Stand Sonntag</div><div class="big" style="color:#E8B93F">${fmtGap(mg.ab[mg.ab.length-1])}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
+    <div class="story-tile"><div class="lbl">${mg.order[1].name} vor ${mg.order[2].name} · Stand Sonntag</div><div class="big" style="color:#4C6FFF">${fmtGap(mg.bc[mg.bc.length-1])}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
 
   const pages = [
     page1, page2, page3,
@@ -2233,8 +2259,8 @@ function renderWrapped(w){
   `, true);
 
   if(document.getElementById("wrappedGapChart")){
-    wrappedGapChartInstance = sparkChart("wrappedGapChart", w.gapSeries, "#E8B93F", w.dayLabels);
-    wrappedGap2ChartInstance = sparkChart("wrappedGap2Chart", w.gapSeries23, "#4C6FFF", w.dayLabels);
+    wrappedGapChartInstance = sparkChart("wrappedGapChart", mg.ab, "#E8B93F", mg.labels);
+    wrappedGap2ChartInstance = sparkChart("wrappedGap2Chart", mg.bc, "#4C6FFF", mg.labels);
   }
   wrappedCatChartInstance = new Chart(document.getElementById("wrappedCatChart"), {
     type: "bar", data: { labels: catData.labels, datasets: catData.datasets }, options: categoryOptions(),
