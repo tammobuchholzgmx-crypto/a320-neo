@@ -1872,15 +1872,20 @@ function isMonday(){
 
 // Für Kategorien mit "limit": prüft ob heute/diese Woche schon geloggt wurde,
 // bzw. ob heute überhaupt der richtige Tag dafür ist ("week-monday").
+const SOCIAL_DAILY_START = new Date("2026-10-26T11:00:00+01:00"); // ab hier gilt Social Media täglich
 function categoryLockState(cat){
   if(!cat.limit || !currentPlayer) return { locked: false };
   const max = cat.maxPerPeriod || 1;
 
   // Kategorien mit gleicher "group" teilen sich das Limit (z.B. nur eine Social-Media-Stufe pro Woche).
   const ids = cat.group ? CATEGORIES.filter(c=> c.group === cat.group).map(c=> c.id) : [cat.id];
+  // Social Media war früher eine Wochen-Kategorie (heute 26.10. wurden noch Wochen-Einträge gemacht).
+  // Einträge davor zählen nicht für das neue Tageslimit.
+  const legacyCut = cat.group === "screentime_tier" ? SOCIAL_DAILY_START : null;
   const countIn = (start, end)=> allEntries.filter(e=>
     e.player_id === currentPlayer && ids.includes(e.category) &&
-    new Date(e.created_at) >= start && new Date(e.created_at) < end
+    new Date(e.created_at) >= start && new Date(e.created_at) < end &&
+    !(legacyCut && new Date(e.created_at) < legacyCut)
   ).length;
 
   if(cat.limit === "day"){
