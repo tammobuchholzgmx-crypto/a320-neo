@@ -746,7 +746,10 @@
   }
   .wallet-cards.four{ grid-template-columns:repeat(2, minmax(0,1fr)); }
   @media (max-width: 420px){
-    .wallet-cards, .wallet-cards.four{ grid-template-columns:minmax(0, 1fr); }
+    .wallet-cards:not(.four){ grid-template-columns:minmax(0, 1fr); }
+    .wallet-cards.four .wallet-card{ padding:10px; }
+    .wallet-cards.four .wallet-btn-row{ flex-direction:column; }
+    .wallet-cards.four .wallet-btn-row > *{ width:100%; flex:none; }
   }
   .wallet-card{
     background:var(--panel-2);
