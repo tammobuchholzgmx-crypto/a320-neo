@@ -6,11 +6,14 @@ const KEY = "sb_publishable_tGL-gO7-zsiQw5jwyzeUEA_ef_Cduao";
 // (siehe Anleitung) eingerichtet hast, nimm stattdessen die zweite Zeile:
 const APP_URL = "https://tammojb.com";
 // const APP_URL = "shortcuts://run-shortcut?name=Scoreboard";
-const PLAYERS = [
-  { id: "p1", name: "Tammo",   color: "#4C6FFF" },
-  { id: "p2", name: "Joshua",  color: "#E8B93F" },
-  { id: "p3", name: "Lennart", color: "#3FBF7F" },
+const ALL_PLAYERS = [
+  { id: "p1", name: "Tammo",    color: "#4C6FFF" },
+  { id: "p2", name: "Joshua",   color: "#E8B93F" },
+  { id: "p3", name: "Lennart",  color: "#3FBF7F" },
+  { id: "p4", name: "Vincenzo", color: "#E05C9E" },
 ];
+// Vincenzo erscheint ab 01.11.2026 00:00 (Berlin)
+const PLAYERS = Date.now() >= new Date("2026-11-01T00:00:00+01:00").getTime() ? ALL_PLAYERS : ALL_PLAYERS.slice(0, 3);
 
 const now = new Date();
 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -59,7 +62,7 @@ if (failed) {
   ranked.forEach((p, i) => {
     const line = w.addStack();
     line.centerAlignContent();
-    const medal = ["🥇", "🥈", "🥉"][i];
+    const medal = ["🥇", "🥈", "🥉", "4️⃣"][i];
     const n = line.addText(`${medal} ${p.name}`);
     n.font = Font.mediumSystemFont(13);
     n.textColor = new Color(p.color);

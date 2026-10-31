@@ -53,7 +53,7 @@
 
   /* ===== Herbst-Themes =====
      Nur die Umgebung ändert sich. Die Spielerfarben (PLAYER_COLORS im Script)
-     bleiben in jedem Theme gleich: Tammo blau, Joshua gelb, Lennart grün. */
+     bleiben in jedem Theme gleich: Tammo blau, Joshua gelb, Lennart grün, Vincenzo pink. */
   html[data-theme="kuerbis"]{
     --bg:#1A1108; --panel:#271A0D; --panel-2:#332312; --line:#4A3119;
     --text:#FAEEDA; --text-dim:#C8A57A; --accent:#E8792B; --grid:#3A2715;
@@ -607,6 +607,7 @@
     gap:8px;
     margin-bottom:24px;
   }
+  .board.four{ grid-template-columns:repeat(2, minmax(0,1fr)); }
   @media (max-width: 420px){
     .board{ gap:6px; }
     .card{ padding:12px 8px; }
@@ -743,8 +744,9 @@
     gap:8px;
     margin-bottom:6px;
   }
+  .wallet-cards.four{ grid-template-columns:repeat(2, minmax(0,1fr)); }
   @media (max-width: 420px){
-    .wallet-cards{ grid-template-columns:minmax(0, 1fr); }
+    .wallet-cards, .wallet-cards.four{ grid-template-columns:minmax(0, 1fr); }
   }
   .wallet-card{
     background:var(--panel-2);
@@ -1243,15 +1245,20 @@
 
 <script>
 /* ============================================================
-   KONFIGURATION — hier alles auf euch drei anpassen
+   KONFIGURATION — hier alles auf euch anpassen
    ============================================================ */
 
-// Eure 3 Spieler: id = intern, name = Anzeigename
-const PLAYERS = [
+// Eure Spieler: id = intern, name = Anzeigename
+// Vincenzo (p4) ist ab 01.11.2026 00:00 Uhr (Berlin) dabei — bis dahin bleibt alles wie bisher.
+const FOUR_PLAYER_START = new Date("2026-11-01T00:00:00+01:00");
+const FOUR_PLAYER_MONTH = "2026-11"; // erster Monat mit 4 Spielern und neuer Geldaufteilung
+const ALL_PLAYERS = [
   { id: "p1", name: "Tammo" },
   { id: "p2", name: "Joshua" },
   { id: "p3", name: "Lennart" },
+  { id: "p4", name: "Vincenzo" },
 ];
+const PLAYERS = Date.now() >= FOUR_PLAYER_START.getTime() ? ALL_PLAYERS : ALL_PLAYERS.slice(0, 3);
 
 // Kategorien: "flat" = fester Punktwert pro Klick, "numeric" = Zahl eingeben.
 // "limit": "day" = pro Tag begrenzt, "week-monday" = nur montags, pro Woche begrenzt.
@@ -1291,8 +1298,13 @@ const BONUS_START_DATE = new Date(2026, 9, 9); // 09.10.2026
 // Für Auswertungen/Anzeige: alle echten Kategorien plus der Bonus.
 const CHART_CATEGORIES = [...CATEGORIES, { id: BONUS_CATEGORY_ID, label: BONUS_CATEGORY_LABEL, type: "flat" }];
 
-// Preis, den der Monatssieger insgesamt bekommt (von den beiden anderen zusammen)
-const MONTHLY_PRIZE_EUR = 15;
+// Geldaufteilung pro Monat: Index = Platz-1, Wert = was dieser Platz zahlt.
+// Der Sieger bekommt die Summe. Bis Oktober 2026: 3 Spieler (5€/10€ → 15€),
+// ab November 2026: 4 Spieler (3€/7€/10€ → 20€).
+function payoutsForMonth(mk){ return mk >= FOUR_PLAYER_MONTH ? [0, 3, 7, 10] : [0, 5, 10]; }
+function prizeForMonth(mk){ return payoutsForMonth(mk).reduce((a, b)=> a + b, 0); }
+// Wer in diesem Monat mitgezählt wird (Vincenzo erst ab November).
+function playersForMonth(mk){ return mk >= FOUR_PLAYER_MONTH ? PLAYERS : PLAYERS.filter(p=> p.id !== "p4"); }
 
 // Start des Spiels — der Ø-Punkte-Wert zählt nie Tage davor mit, auch wenn
 // der Monat schon vorher angefangen hätte.
@@ -1300,7 +1312,7 @@ const START_DATE = new Date(2026, 8, 18); // 18.09.2026 (Monat ist 0-indexiert: 
 
 // Feste Akzentfarbe je Spieler — an einer Stelle definiert, überall verwendet
 // (Chart, Karten, Badges, Namens-Auswahl), damit es konsistent bleibt.
-const PLAYER_COLORS = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
+const PLAYER_COLORS = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F", p4: "#E05C9E" };
 
 /* ---------- Herbst-Themes ----------
    Jede*r wählt das Design für das eigene Gerät (localStorage). Die
@@ -1309,7 +1321,7 @@ const PLAYER_COLORS = { p1: "#4C6FFF", p2: "#E8B93F", p3: "#3FBF7F" };
    genutzt, sonst wäre z.B. Joshuas Gelb auf Creme kaum lesbar. Ränder,
    Linien und Heatmap nutzen weiter exakt die Originalfarbe. */
 const THEME_KEY = "sb_theme_v1";
-const PLAYER_TEXT_ON_LIGHT = { p1: "#3550D6", p2: "#946400", p3: "#1F8A55" };
+const PLAYER_TEXT_ON_LIGHT = { p1: "#3550D6", p2: "#946400", p3: "#1F8A55", p4: "#B8346F" };
 const LEAF_SVG = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c.6 1.7 1.6 2.8 3.2 3.1-.4 1-.3 1.8.3 2.4 1.1-.6 2.3-.6 3.5 0-.6 1.4-.5 2.6.4 3.6-1.3.4-2.1 1.2-2.3 2.6-1.3-.6-2.5-.6-3.6.2l.2 3.6-.9.1-.6 4.4h-.4l-.6-4.4-.9-.1.2-3.6c-1.1-.8-2.3-.8-3.6-.2-.2-1.4-1-2.2-2.3-2.6.9-1 1-2.2.4-3.6 1.2-.6 2.4-.6 3.5 0 .6-.6.7-1.4.3-2.4C10.4 4.8 11.4 3.7 12 2Z"/></svg>';
 
 const THEMES = {
@@ -1531,7 +1543,7 @@ function maybeShowThemeOnboarding(){
 /* ===== Layout anpassen (pro Gerät, localStorage) ===== */
 const LAYOUT_KEY = "sb_layout_v1";
 const MODULES = [
-  { id:"board",  label:"Rangliste",       sub:"Die Karten der drei" },
+  { id:"board",  label:"Rangliste",       sub:"Die Karten der Spieler" },
   { id:"chart",  label:"Punkteverlauf",   sub:"Diagramm + Preisgeld-Hinweis" },
   { id:"log",    label:"Punkte eintragen",sub:"Immer sichtbar", fixed:true },
   { id:"wallet", label:"Guthaben",        sub:"Wallet & Ausgaben" },
@@ -1908,21 +1920,22 @@ function categoryLockState(cat){
 
 // Ermittelt Sieger eines Monats aus einer Liste von Einträgen (nur dieser Monat).
 // Bei Gleichstand an der Spitze gibt es keinen eindeutigen Sieger.
-function monthWinner(monthEntries){
+function monthWinner(monthEntries, mk){
+  if(!mk) mk = monthEntries.length ? monthKey(new Date(monthEntries[0].created_at)) : monthKey(new Date());
+  const ps = playersForMonth(mk);
   const totals = {};
   PLAYERS.forEach(p=> totals[p.id] = 0);
   monthEntries.forEach(e=> totals[e.player_id] = (totals[e.player_id]||0) + e.points);
-  const max = Math.max(...PLAYERS.map(p=> totals[p.id]));
+  const max = Math.max(...ps.map(p=> totals[p.id]));
   if(max <= 0) return { winner: null, tie: false, totals };
-  const topPlayers = PLAYERS.filter(p=> totals[p.id] === max);
+  const topPlayers = ps.filter(p=> totals[p.id] === max);
   return topPlayers.length === 1
     ? { winner: topPlayers[0], tie: false, totals }
     : { winner: null, tie: true, totals };
 }
 
-// Guthaben je Spieler: +15€ für jeden abgeschlossenen Monat, den er gewonnen
-// hat, -5€ für Platz 2 und -10€ für Platz 3 in diesem Monat (ergibt zusammen
-// die 15€ des Siegers), minus alles, was er/sie über "Ausgeben" bereits
+// Guthaben je Spieler: Preisgeld für jeden abgeschlossenen Monat, den er gewonnen
+// hat; die anderen Plätze zahlen je nach Monat (siehe payoutsForMonth), minus alles, was er/sie über "Ausgeben" bereits
 // abgezogen hat. Bei Gleichstand an der Spitze wird der Monat nicht verbucht
 // (niemand bekommt/zahlt automatisch) — siehe monthWinner().
 function computeWallets(){
@@ -1933,13 +1946,13 @@ function computeWallets(){
   monthsSeen.forEach(mk=>{
     if(mk === nowKey) return; // laufender Monat ist noch nicht abgeschlossen
     const monthEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === mk);
-    const { winner, totals } = monthWinner(monthEntries);
+    const { winner, totals } = monthWinner(monthEntries, mk);
     if(!winner) return; // Gleichstand an der Spitze — kein Geld fließt
 
-    const ranked = PLAYERS.map(p=> ({ id: p.id, pts: totals[p.id] || 0 })).sort((a,b)=> b.pts - a.pts);
-    balances[winner.id] += MONTHLY_PRIZE_EUR;
-    if(ranked[1]) balances[ranked[1].id] -= 5;
-    if(ranked[2]) balances[ranked[2].id] -= 10;
+    const pay = payoutsForMonth(mk);
+    const ranked = playersForMonth(mk).map(p=> ({ id: p.id, pts: totals[p.id] || 0 })).sort((a,b)=> b.pts - a.pts);
+    balances[winner.id] += prizeForMonth(mk);
+    for(let i = 1; i < pay.length; i++){ if(ranked[i]) balances[ranked[i].id] -= pay[i]; }
   });
   allSpends.forEach(s=>{
     if(balances[s.player_id] !== undefined) balances[s.player_id] -= Number(s.amount);
@@ -1958,7 +1971,7 @@ function computeAchievements(){
   monthsSeen.forEach(mk=>{
     if(mk === nowKey) return;
     const monthEntries = allEntries.filter(e=> monthKey(new Date(e.created_at)) === mk);
-    const { winner } = monthWinner(monthEntries);
+    const { winner } = monthWinner(monthEntries, mk);
     if(winner) wins[winner.id]++;
   });
 
@@ -2066,7 +2079,7 @@ function updateTicker(){
 
 // Kurzer Konfetti-Regen, rein CSS-animiert, keine externe Library nötig.
 function launchConfetti(){
-  const colors = [PLAYER_COLORS.p1, PLAYER_COLORS.p2, PLAYER_COLORS.p3, "#E2584D", "#FF8FB1"];
+  const colors = [PLAYER_COLORS.p1, PLAYER_COLORS.p2, PLAYER_COLORS.p3, PLAYER_COLORS.p4, "#E2584D"];
   const container = document.createElement("div");
   container.className = "confetti-container";
   for(let i=0; i<60; i++){
@@ -2098,7 +2111,7 @@ function maybeCelebrateMonthWin(){
   if(prevEntries.length === 0) return; // noch keine Daten für den Vormonat da
 
   localStorage.setItem(flagKey, "1");
-  const { winner } = monthWinner(prevEntries);
+  const { winner } = monthWinner(prevEntries, prevKey);
   if(!winner) return; // Gleichstand — nichts zu feiern
 
   const totals = {};
@@ -2109,7 +2122,7 @@ function maybeCelebrateMonthWin(){
   launchConfetti();
   openModal(`
     <h3>${ICONS.trophy} ${winner.name} hat gewonnen!</h3>
-    <p class="modal-sub">Sieger im ${label} mit ${totals[winner.id]} Punkten — bekommt 15€ von den anderen.</p>
+    <p class="modal-sub">Sieger im ${label} mit ${totals[winner.id]} Punkten — bekommt ${prizeForMonth(prevKey)}€ von den anderen.</p>
     <div class="modal-actions"><button class="primary" onclick="closeModal()">Nice!</button></div>
   `);
 }
@@ -2239,7 +2252,7 @@ function renderWrapped(w){
   const page2 = `
     <div class="story-kicker">Highlights</div>
     ${(w.biggestJump.player && w.biggestJump.pts > 0) ? `<div class="story-tile"><div class="lbl">Größter Sprung an einem Tag</div><div class="big" style="color:${colorOf(w.biggestJump.player)}">+${w.biggestJump.pts}</div><div class="lbl" style="margin:4px 0 0">${w.biggestJump.player.name} · ${w.biggestJump.dayLabel}</div></div>` : ""}
-    ${(w.bestGroupDay && w.bestGroupPts > 0) ? `<div class="story-tile"><div class="lbl">Fleißigster Tag zusammen</div><div class="big">${w.bestGroupDay}</div><div class="lbl" style="margin:4px 0 0">${w.bestGroupPts} Punkte von euch dreien</div></div>` : ""}`;
+    ${(w.bestGroupDay && w.bestGroupPts > 0) ? `<div class="story-tile"><div class="lbl">Fleißigster Tag zusammen</div><div class="big">${w.bestGroupDay}</div><div class="lbl" style="margin:4px 0 0">${w.bestGroupPts} Punkte von euch allen</div></div>` : ""}`;
 
   const mg = w.monthGap;
   const fmtGap = g=> (g < 0 ? "−" : "+") + Math.abs(g);
@@ -2749,6 +2762,7 @@ function renderWallet(){
   const byId = {}; PLAYERS.forEach(p=> byId[p.id] = p.name);
 
   const cardsEl = document.getElementById("walletCards");
+  cardsEl.classList.toggle("four", PLAYERS.length >= 4);
   cardsEl.innerHTML = PLAYERS.map(p=>{
     const bal = balances[p.id] || 0;
     const owes = bal < 0;
@@ -2851,6 +2865,7 @@ function renderBoard(entries, isLive, viewedDate){
 
   const board = document.getElementById("board");
   board.innerHTML = "";
+  board.classList.toggle("four", ranked.length >= 4);
   ranked.forEach((p, i)=>{
     const card = document.createElement("div");
     const isSoleLeader = i === 0 && p.pts > 0 && !tiedAtTop;
@@ -2871,7 +2886,8 @@ function renderBoard(entries, isLive, viewedDate){
         : "";
       const gapTop1 = i === 1 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
       const gapTop2 = i === 2 && ranked[1].pts > p.pts ? `<div class="p-gap">${ranked[1].pts - p.pts} bis Platz 2</div>` : "";
-      const gapHtml = gapTop1 + gapTop2;
+      const gapTop3 = i === 3 && ranked[2].pts > p.pts ? `<div class="p-gap">${ranked[2].pts - p.pts} bis Platz 3</div>` : "";
+      const gapHtml = gapTop1 + gapTop2 + gapTop3;
       let compareHtml = "";
       if(prevMonth && prevMonth.hasData){
         const delta = p.pts - prevMonth.totals[p.id];
@@ -2915,25 +2931,30 @@ function renderBoard(entries, isLive, viewedDate){
   }
 
   const banner = document.getElementById("stakesBanner");
-  if(isLive){
-    if(tiedAtTop){
-      const names = ranked.filter(p=> p.pts === topScore).map(p=> p.name).join(" & ");
-      banner.innerHTML = `Gleichstand: <strong>${names}</strong> — ${MONTHLY_PRIZE_EUR}€ noch offen.`;
-    } else if(topScore > 0){
-      const second = ranked[1], third = ranked[2];
-      banner.innerHTML = `<strong>${ranked[0].name}</strong> führt · +${MONTHLY_PRIZE_EUR}€ (${third.name} -10€, ${second.name} -5€)`;
+  {
+    // Preisgeld-Zeile: richtet sich nach dem angezeigten Monat (3 oder 4 Spieler).
+    const mk = monthKey(viewedDate);
+    const rr = ranked.filter(p=> playersForMonth(mk).some(q=> q.id === p.id));
+    const pay = payoutsForMonth(mk), prize = prizeForMonth(mk);
+    const top = rr[0].pts;
+    const tied = top > 0 && rr.filter(p=> p.pts === top).length > 1;
+    const payers = rr.slice(1).map((p, i)=> `${p.name} -${pay[i + 1]}€`).reverse().join(", ");
+    if(isLive){
+      if(tied){
+        banner.innerHTML = `Gleichstand: <strong>${rr.filter(p=> p.pts === top).map(p=> p.name).join(" & ")}</strong> — ${prize}€ noch offen.`;
+      } else if(top > 0){
+        banner.innerHTML = `<strong>${rr[0].name}</strong> führt · +${prize}€ (${payers})`;
+      } else {
+        banner.innerHTML = `Noch keine Einträge. Sieger bekommt ${prize}€.`;
+      }
     } else {
-      banner.innerHTML = `Noch keine Einträge. Sieger bekommt ${MONTHLY_PRIZE_EUR}€.`;
-    }
-  } else {
-    if(tiedAtTop){
-      const names = ranked.filter(p=> p.pts === topScore).map(p=> p.name).join(" & ");
-      banner.innerHTML = `Gleichstand: <strong>${names}</strong> — ${MONTHLY_PRIZE_EUR}€ nicht vergeben.`;
-    } else if(topScore > 0){
-      const second = ranked[1], third = ranked[2];
-      banner.innerHTML = `<strong>${ranked[0].name}</strong> war Sieger mit ${topScore} Pkt · +${MONTHLY_PRIZE_EUR}€ (${third.name} -10€, ${second.name} -5€)`;
-    } else {
-      banner.innerHTML = `Keine Einträge in diesem Monat.`;
+      if(tied){
+        banner.innerHTML = `Gleichstand: <strong>${rr.filter(p=> p.pts === top).map(p=> p.name).join(" & ")}</strong> — ${prize}€ nicht vergeben.`;
+      } else if(top > 0){
+        banner.innerHTML = `<strong>${rr[0].name}</strong> war Sieger mit ${top} Pkt · +${prize}€ (${payers})`;
+      } else {
+        banner.innerHTML = `Keine Einträge in diesem Monat.`;
+      }
     }
   }
 }
