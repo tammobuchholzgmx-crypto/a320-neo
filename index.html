@@ -1849,7 +1849,7 @@ function formatEuro(v){
 // als "atRisk" markiert.
 function computeStreak(playerId, entriesAllTime){
   const days = new Set(
-    entriesAllTime.filter(e=> e.player_id === playerId).map(e=> dateKey(new Date(e.created_at)))
+    entriesAllTime.filter(e=> e.player_id === playerId && e.category !== STREAK_PENALTY_ID).map(e=> dateKey(new Date(e.created_at)))
   );
   const today = new Date();
   const atRisk = !days.has(dateKey(today));
@@ -1861,6 +1861,47 @@ function computeStreak(playerId, entriesAllTime){
     cursor.setDate(cursor.getDate()-1);
   }
   return { count: streak, atRisk: atRisk && streak > 0 };
+}
+
+// Streak-Verlust: Reißt eine Streak (mind. STREAK_MIN_DAYS Tage am Stück) ab,
+// gibt es -100 Punkte. Wird nur berechnet (nicht gespeichert) und als
+// virtueller Eintrag in allEntries gemischt. Zählt erst für Tage ab dem Stichtag,
+// damit nichts rückwirkend passiert. Die Strafe liegt am Ende des ersten
+// verpassten Tages (also erst, wenn dieser Tag wirklich vorbei ist).
+const STREAK_PENALTY_ID = "streak_verlust";
+const STREAK_PENALTY_POINTS = -100;
+const STREAK_MIN_DAYS = 3;
+const STREAK_PENALTY_START = new Date("2026-11-01T00:00:00+01:00");
+function streakPenaltyEntries(entries){
+  const out = [];
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const byPlayer = {};
+  entries.forEach(e=>{
+    if(e.category === STREAK_PENALTY_ID) return;
+    (byPlayer[e.player_id] = byPlayer[e.player_id] || new Set()).add(dateKey(new Date(e.created_at)));
+  });
+  Object.keys(byPlayer).forEach(pid=>{
+    const days = [...byPlayer[pid]].map(k=>{ const [y,m,d] = k.split("-").map(Number); return new Date(y, m-1, d); }).sort((a,b)=> a-b);
+    let run = 0, prev = null;
+    const close = last=>{
+      if(run < STREAK_MIN_DAYS) return;
+      const missed = new Date(last); missed.setDate(missed.getDate()+1);
+      if(missed < STREAK_PENALTY_START || missed >= todayStart) return;
+      const ts = new Date(missed); ts.setHours(23,59,58,0);
+      out.push({ id:"streak-"+pid+"-"+dateKey(missed), player_id:pid, category:STREAK_PENALTY_ID,
+        points:STREAK_PENALTY_POINTS, raw_value:run, created_at:ts.toISOString() });
+    };
+    days.forEach(d=>{
+      if(prev){
+        const nx = new Date(prev); nx.setDate(nx.getDate()+1);
+        if(dateKey(nx) === dateKey(d)) run++;
+        else { close(prev); run = 1; }
+      } else run = 1;
+      prev = d;
+    });
+    if(prev) close(prev);
+  });
+  return out;
 }
 
 function dayBounds(){
@@ -2060,7 +2101,7 @@ function relativeTime(date){
 function updateTicker(){
   const el = document.getElementById("ticker");
   if(!el) return;
-  const tickerEntries = allEntries.filter(e=> e.category !== BONUS_CATEGORY_ID);
+  const tickerEntries = allEntries.filter(e=> e.category !== BONUS_CATEGORY_ID && e.category !== STREAK_PENALTY_ID);
   if(tickerEntries.length === 0){ el.textContent = ""; lastTickerEntryId = null; return; }
 
   const latest = [...tickerEntries].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))[0];
@@ -3328,17 +3369,18 @@ function renderFeed(entries){
     const itemsHtml = dayEntries.map(e=>{
       const d = new Date(e.created_at);
       const isBonus = e.category === BONUS_CATEGORY_ID;
-      const time = isBonus ? "Tagesbonus" : d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
-      const catText = isBonus
+      const isPen = e.category === STREAK_PENALTY_ID;
+      const time = isPen ? "Streak weg" : isBonus ? "Tagesbonus" : d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+      const catText = isPen ? `Streak verloren (${e.raw_value} Tage)` : isBonus
         ? `${BONUS_CATEGORY_LABEL} (${e.raw_value || "?"} ${e.raw_value === 1 ? "Kategorie" : "Kategorien"})`
         : (catLabel[e.category] || e.category);
       const cat = CATEGORIES.find(c=> c.id === e.category);
       const editBtn = cat && cat.type === "numeric" ? `<button class="edit-btn" onclick="openEditModal('${e.id}')" title="Bearbeiten">✎</button>` : "";
       // Der Bonus wird automatisch berechnet — dort gibt es nichts zu löschen/bearbeiten.
-      const delBtn = isBonus ? "" : `<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button>`;
+      const delBtn = (isBonus || isPen) ? "" : `<button class="del-btn" onclick="deleteEntry('${e.id}')" title="Löschen">×</button>`;
       return `<div class="feed-item">
         <div><span class="feed-name" style="color:${playerTextColor(e.player_id)}">${byId[e.player_id]||'?'}</span> <span class="feed-cat">${catText}</span></div>
-        <div><span class="feed-pts">+${e.points}</span><span class="feed-time">${time}</span>${editBtn}${delBtn}</div>
+        <div><span class="feed-pts"${e.points<0?' style="color:var(--red,#E2584D)"':""}>${e.points>0?"+":""}${e.points}</span><span class="feed-time">${time}</span>${editBtn}${delBtn}</div>
       </div>`;
     }).join("");
 
@@ -3450,6 +3492,7 @@ async function loadAndRender(){
   if(entriesRes.error){ console.error(entriesRes.error); return; }
   if(spendsRes.error){ console.error(spendsRes.error); }
   allEntries = entriesRes.data || [];
+  allEntries = allEntries.concat(streakPenaltyEntries(allEntries));
   allSpends = spendsRes.data || [];
   buildMonthOptions();
   applyView();
