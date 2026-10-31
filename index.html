@@ -595,6 +595,14 @@
     cursor:pointer;
     font-family:'Inter';
   }
+  .header-right{ display:flex; align-items:center; gap:12px; }
+  .me-btn{ background:none; border:none; padding:0; cursor:pointer; line-height:0; }
+  .me-btn .av{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; box-shadow:0 0 0 2px var(--bg), 0 0 0 3.5px var(--ring, var(--line)); }
+  .modal-box.forced .modal-close{ display:none; }
+  .who-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; margin-top:10px; }
+  .who-opt{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 8px; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; color:var(--text); font-family:'Inter'; font-size:14px; font-weight:600; cursor:pointer; }
+  .who-opt .av{ width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:700; }
+  .who-opt.on{ border-color:var(--ring); }
   html #who{ justify-content:space-around; }
   html #who button{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; background:none; border:none; box-shadow:none; backdrop-filter:none; padding:4px 0; color:var(--text-dim); font-size:12px; font-weight:500; }
   html #who button .av, .heat-tabs button .av{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; opacity:.5; transition:opacity .15s, box-shadow .15s; }
@@ -1169,7 +1177,10 @@
 
   <header>
     <h1>Scoreboard</h1>
-    <div class="month-label" id="monthLabel"></div>
+    <div class="header-right">
+      <div class="month-label" id="monthLabel"></div>
+      <button class="me-btn" id="meBtn" onclick="openWhoPicker(false)" aria-label="Spieler wechseln"></button>
+    </div>
   </header>
 
   <div class="ticker" id="ticker"></div>
@@ -1186,8 +1197,6 @@
     <span>Du siehst einen vergangenen Monat an (nur Ansicht).</span>
     <button onclick="backToLive()">Zurück zu heute</button>
   </div>
-
-  <div id="who"></div>
 
   <div id="modules">
   <div class="mod" data-mod="board">
@@ -2193,6 +2202,7 @@ function launchConfetti(){
 // gibt's einen kurzen Showmoment. localStorage merkt sich das pro Gerät,
 // damit es nicht bei jedem Neuladen wieder aufploppt.
 function maybeCelebrateMonthWin(){
+  if(whoForced || !currentPlayer) return; // erst Spieler wählen lassen
   const now = new Date();
   const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
   const prevKey = monthKey(prevDate);
@@ -2400,6 +2410,7 @@ function lastFinishedWeekStart(){
 // angezeigt wurde, und hat einen eigenen Schlüssel (wrapped2_), damit alte
 // Flags aus früheren Versionen es nicht blockieren.
 function maybeShowWeeklyWrapped(){
+  if(whoForced || !currentPlayer) return; // erst Spieler wählen lassen
   const finishedWeekStart = lastFinishedWeekStart();
   const flagKey = "wrapped2_" + isoDateKey(finishedWeekStart);
   if(localStorage.getItem(flagKey)) return;
@@ -2432,7 +2443,7 @@ function openModal(html, wide, sheet){
 function closeModal(){
   document.getElementById("modalOverlay").classList.remove("show");
   document.getElementById("modalContent").innerHTML = "";
-  document.getElementById("modalBox").classList.remove("wide", "sheet");
+  document.getElementById("modalBox").classList.remove("wide", "sheet", "forced");
   document.getElementById("modalOverlay").classList.remove("sheet");
   if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance = null; }
   if(pieChartDayInstance){ pieChartDayInstance.destroy(); pieChartDayInstance = null; }
@@ -2447,7 +2458,7 @@ function closeModal(){
 }
 
 function closeModalOnOverlay(e){
-  if(e.target.id === "modalOverlay") closeModal();
+  if(e.target.id === "modalOverlay" && !whoForced) closeModal();
 }
 
 // Feste Farbe pro Kategorie, damit Kuchendiagramme verschiedener Personen vergleichbar sind.
@@ -2598,21 +2609,40 @@ function avatarHtml(p){
   return `<span class="av" style="background:${PLAYER_COLORS[p.id]};color:${dark ? "#16171A" : "#fff"}">${p.name[0]}</span>`;
 }
 function renderWho(){
-  const el = document.getElementById("who");
-  el.innerHTML = "";
-  PLAYERS.forEach(p=>{
-    const btn = document.createElement("button");
-    btn.innerHTML = avatarHtml(p) + `<span>${p.name}</span>`;
-    btn.style.setProperty("--ring", PLAYER_COLORS[p.id]);
-    if(p.id === currentPlayer) btn.classList.add("active");
-    btn.onclick = ()=>{
-      currentPlayer = p.id;
-      localStorage.setItem("sb_current_player", p.id);
-      renderWho();
-      renderCats();
-    };
-    el.appendChild(btn);
-  });
+  const btn = document.getElementById("meBtn");
+  if(!btn) return;
+  const me = PLAYERS.find(p=> p.id === currentPlayer);
+  if(currentPlayer && !me){ currentPlayer = null; try{ localStorage.removeItem("sb_current_player"); }catch(e){} }
+  if(me){
+    btn.innerHTML = avatarHtml(me);
+    btn.style.setProperty("--ring", PLAYER_COLORS[me.id]);
+    btn.setAttribute("aria-label", `Du bist ${me.name}. Tippen zum Wechseln`);
+  } else {
+    btn.innerHTML = `<span class="av" style="background:var(--panel-2);color:var(--text-dim)">?</span>`;
+    btn.setAttribute("aria-label", "Spieler wählen");
+  }
+}
+
+let whoForced = false;
+function openWhoPicker(forced){
+  whoForced = !!forced;
+  const chips = PLAYERS.map(p=> `<button class="who-opt${p.id === currentPlayer ? " on" : ""}" style="--ring:${PLAYER_COLORS[p.id]}" onclick="pickWho('${p.id}')">${avatarHtml(p)}<span>${p.name}</span></button>`).join("");
+  openModal(`<div class="sheet-handle"></div>
+    <div class="sheet-head"><div class="sn">${forced ? "Wer bist du?" : "Spieler wechseln"}</div></div>
+    <p class="modal-sub" style="margin-top:6px">${forced ? "Das merkt sich die App auf diesem Handy." : "Wähle, für wen du Punkte einträgst."}</p>
+    <div class="who-grid">${chips}</div>`, false, true);
+  document.getElementById("modalBox").classList.toggle("forced", whoForced);
+}
+function pickWho(id){
+  currentPlayer = id;
+  try{ localStorage.setItem("sb_current_player", id); }catch(e){}
+  whoForced = false;
+  closeModal();
+  renderWho();
+  renderCats();
+  if(typeof applyView === "function" && allEntries.length) applyView();
+  if(typeof maybeCelebrateMonthWin === "function") maybeCelebrateMonthWin();
+  if(typeof maybeShowWeeklyWrapped === "function") setTimeout(maybeShowWeeklyWrapped, 400);
 }
 
 // Prüft für die ausgewählte Person alle Tage seit Bonus-Start lokal auf falsche
@@ -2703,7 +2733,7 @@ function renderCats(){
 }
 
 async function logFlat(cat){
-  if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
+  if(!currentPlayer){ openWhoPicker(true); return; }
   const lock = categoryLockState(cat);
   if(lock.locked){ alert("Geht gerade nicht: " + lock.reason + "."); return; }
   await insertEntry(cat.id, cat.points, `+${cat.points} für ${cat.label}`);
@@ -2711,7 +2741,7 @@ async function logFlat(cat){
 
 async function logNumeric(catId){
   const cat = CATEGORIES.find(c=> c.id === catId);
-  if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
+  if(!currentPlayer){ openWhoPicker(true); return; }
   const input = document.getElementById("input-"+catId);
   const value = parseFloat((input.value || "").replace(",", "."));
   if(!value || value <= 0){ alert("Trag zuerst eine Zahl ein."); return; }
@@ -3103,13 +3133,14 @@ function renderBoard(entries, isLive, viewedDate){
     banner.onclick = compact ? ()=> openStakesDetails({ rr, pay, prize, tied, top, isLive }) : null;
     if(compact){
       const more = `<span class="stakes-more">Details ›</span>`;
+      const wrap = t=> `<span>${t}</span>`;
       if(isLive){
-        banner.innerHTML = tied ? `Gleichstand an der Spitze · Pot ${prize} € offen ${more}`
-          : top > 0 ? `<strong>${rr[0].name}</strong> führt · Pot ${prize} € ${more}`
-          : `Noch keine Einträge · Pot ${prize} € ${more}`;
+        banner.innerHTML = (tied ? wrap(`Gleichstand an der Spitze · Pot ${prize} € offen`)
+          : top > 0 ? wrap(`<strong>${rr[0].name}</strong> führt · Pot ${prize} €`)
+          : wrap(`Noch keine Einträge · Pot ${prize} €`)) + more;
       } else {
-        banner.innerHTML = tied ? `Gleichstand · Pot ${prize} € nicht vergeben ${more}`
-          : top > 0 ? `<strong>${rr[0].name}</strong> war Sieger · Pot ${prize} € ${more}`
+        banner.innerHTML = tied ? wrap(`Gleichstand · Pot ${prize} € nicht vergeben`) + more
+          : top > 0 ? wrap(`<strong>${rr[0].name}</strong> war Sieger · Pot ${prize} €`) + more
           : `Keine Einträge in diesem Monat.`;
       }
     } else if(isLive){
@@ -3756,7 +3787,7 @@ async function updateNotifButton(){
 }
 
 async function toggleNotifications(){
-  if(!currentPlayer){ alert("Wähl oben erst deinen Namen aus."); return; }
+  if(!currentPlayer){ openWhoPicker(true); return; }
   if(!("serviceWorker" in navigator) || !("PushManager" in window)){
     alert("Push-Benachrichtigungen werden hier nicht unterstützt. Auf dem iPhone: App erst zum Home-Bildschirm hinzufügen und von dort öffnen.");
     return;
@@ -3803,6 +3834,7 @@ async function init(){
 
   renderWho();
   renderCats();
+  if(!currentPlayer) openWhoPicker(true);
   await loadAndRender();
   subscribeRealtime();
   healDiversityBonus().catch(err=> console.error("Bonus-Prüfung:", err));
