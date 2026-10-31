@@ -595,6 +595,11 @@
     cursor:pointer;
     font-family:'Inter';
   }
+  html #who{ justify-content:space-around; }
+  html #who button{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; background:none; border:none; box-shadow:none; backdrop-filter:none; padding:4px 0; color:var(--text-dim); font-size:12px; font-weight:500; }
+  html #who button .av, .heat-tabs button .av{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; opacity:.5; transition:opacity .15s, box-shadow .15s; }
+  html #who button.active .av, .heat-tabs button.on .av{ opacity:1; box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--ring); }
+  html #who button.active{ background:none; color:var(--text); }
   #who button.active{
     border-color:var(--accent);
     background:var(--panel-2);
@@ -753,6 +758,15 @@
     line-height:1.5;
   }
   .stakes strong{color:var(--gold);}
+  .stakes.tap{ cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stakes-more{ color:var(--text-dim); font-size:12px; white-space:nowrap; }
+  .stake-list{ display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+  .stake-row{ display:flex; align-items:baseline; gap:10px; background:var(--panel-2); border-radius:12px; padding:12px 14px; }
+  .stake-rank{ color:var(--text-dim); font-size:13px; width:18px; }
+  .stake-name{ font-weight:600; font-size:15px; flex:1; }
+  .stake-pts{ color:var(--text-dim); font-size:12px; }
+  .stake-amt{ font-family:var(--font-display); font-weight:800; font-size:18px; min-width:62px; text-align:right; }
+  .stake-amt.up{ color:var(--green); } .stake-amt.down{ color:var(--red); }
 
   /* Wallet */
   section.wallet{
@@ -1045,6 +1059,9 @@
   section.heat{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:24px; }
   section.heat h2{ font-size:14px; font-weight:600; margin:0 0 12px; color:var(--text-dim); }
   .heat-tabs{ display:flex; gap:6px; margin-bottom:12px; }
+  html .heat-tabs{ justify-content:space-around; }
+  html .heat-tabs button.avb{ flex:none; background:none; border:none; box-shadow:none; padding:2px; }
+  html .heat-tabs button.avb .av{ width:40px; height:40px; font-size:16px; }
   .heat-tabs button{ flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text-dim); border-radius:8px; padding:7px 4px; font-size:13px; font-family:'Inter'; cursor:pointer; }
   .heat-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px; }
   .heat-months{ display:grid; grid-auto-flow:column; grid-auto-columns:15px; gap:3px; font-size:10px; color:var(--text-dim); opacity:.8; height:14px; margin-bottom:3px; white-space:nowrap; }
@@ -1811,6 +1828,7 @@ let wrappedCatChartInstance = null;
 let wrappedWeekChartInstance = null;
 let wrappedGapChartInstance = null;
 let wrappedGap2ChartInstance = null;
+let wrappedGap3ChartInstance = null;
 let pieChartInstance = null;
 let pieChartDayInstance = null;
 let previousRanks = {};    // nur für die Live-Ansicht (Rang-Pfeile)
@@ -2270,6 +2288,7 @@ function buildWrapped(weekStart){
     order,
     ab: diff(order[0], order[1]).slice(off),
     bc: order[2] ? diff(order[1], order[2]).slice(off) : [],
+    cd: order[3] ? diff(order[2], order[3]).slice(off) : [],
     labels: dayLabels.slice(0, nDays - off),
   };
 
@@ -2333,7 +2352,8 @@ function renderWrapped(w){
   const page3 = (mg && mg.order.length >= 3) ? `
     <div class="story-kicker">Abstand zwischen den Plätzen</div>
     <div class="story-tile"><div class="lbl">${mg.order[0].name} vor ${mg.order[1].name} · Stand Sonntag</div><div class="big" style="color:#E8B93F">${fmtGap(mg.ab[mg.ab.length-1])}</div><div class="story-spark"><canvas id="wrappedGapChart"></canvas></div></div>
-    <div class="story-tile"><div class="lbl">${mg.order[1].name} vor ${mg.order[2].name} · Stand Sonntag</div><div class="big" style="color:#4C6FFF">${fmtGap(mg.bc[mg.bc.length-1])}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>` : "";
+    <div class="story-tile"><div class="lbl">${mg.order[1].name} vor ${mg.order[2].name} · Stand Sonntag</div><div class="big" style="color:#4C6FFF">${fmtGap(mg.bc[mg.bc.length-1])}</div><div class="story-spark"><canvas id="wrappedGap2Chart"></canvas></div></div>
+    ${mg.order.length >= 4 ? `<div class="story-tile"><div class="lbl">${mg.order[2].name} vor ${mg.order[3].name} · Stand Sonntag</div><div class="big" style="color:#E05C9E">${fmtGap(mg.cd[mg.cd.length-1])}</div><div class="story-spark"><canvas id="wrappedGap3Chart"></canvas></div></div>` : ""}` : "";
 
   const pages = [
     page1, page2, page3,
@@ -2354,6 +2374,7 @@ function renderWrapped(w){
   if(document.getElementById("wrappedGapChart")){
     wrappedGapChartInstance = sparkChart("wrappedGapChart", mg.ab, "#E8B93F", mg.labels);
     wrappedGap2ChartInstance = sparkChart("wrappedGap2Chart", mg.bc, "#4C6FFF", mg.labels);
+    if(document.getElementById("wrappedGap3Chart")) wrappedGap3ChartInstance = sparkChart("wrappedGap3Chart", mg.cd, "#E05C9E", mg.labels);
   }
   wrappedCatChartInstance = new Chart(document.getElementById("wrappedCatChart"), {
     type: "bar", data: { labels: catData.labels, datasets: catData.datasets }, options: categoryOptions(),
@@ -2422,6 +2443,7 @@ function closeModal(){
   if(wrappedWeekChartInstance){ wrappedWeekChartInstance.destroy(); wrappedWeekChartInstance = null; }
   if(wrappedGapChartInstance){ wrappedGapChartInstance.destroy(); wrappedGapChartInstance = null; }
   if(wrappedGap2ChartInstance){ wrappedGap2ChartInstance.destroy(); wrappedGap2ChartInstance = null; }
+  if(wrappedGap3ChartInstance){ wrappedGap3ChartInstance.destroy(); wrappedGap3ChartInstance = null; }
 }
 
 function closeModalOnOverlay(e){
@@ -2441,6 +2463,19 @@ function categoryColor(id){ return CATEGORY_COLORS[id] || "#8E9AAF"; }
 // Klick auf eine Spieler-Karte: Kuchendiagramm, wie sich die Punkte im
 // gerade angezeigten Zeitraum (aktueller Monat oder Archiv-Monat) zusammensetzen.
 let boardStats = {};
+function openStakesDetails(st){
+  const { rr, pay, prize, tied, top, isLive } = st;
+  const rows = rr.map((p, i)=>{
+    const amt = i === 0 ? `+${prize} €` : `-${pay[i]} €`;
+    const cls = i === 0 ? "up" : "down";
+    const lead = i === 0 && !tied && top > 0;
+    return `<div class="stake-row"><span class="stake-rank">${i + 1}.</span><span class="stake-name" style="color:${playerTextColor(p.id)}">${p.name}</span><span class="stake-pts">${p.pts} Pkt</span><span class="stake-amt ${top > 0 ? cls : ""}">${lead || !isLive || i > 0 ? amt : amt}</span></div>`;
+  }).join("");
+  openModal(`<div class="sheet-handle"></div>
+    <div class="sheet-head"><div class="sn">Geld-Aufteilung</div><div class="sp">${prize}<small>€ Pot</small></div></div>
+    <p class="modal-sub" style="margin-top:6px">${tied ? "Gleichstand an der Spitze: der Pot bleibt offen." : "Platz 1 bekommt den Pot, die anderen zahlen ein."}</p>
+    <div class="stake-list">${rows}</div>`, false, true);
+}
 function openPlayerBreakdown(playerId){
   const player = PLAYERS.find(p=> p.id === playerId);
   const entries = lastViewedEntries.filter(e=> e.player_id === playerId);
@@ -2558,17 +2593,18 @@ async function saveEditEntry(entryId){
   loadAndRender();
 }
 
+function avatarHtml(p){
+  const dark = p.id === "p2" || p.id === "p3";
+  return `<span class="av" style="background:${PLAYER_COLORS[p.id]};color:${dark ? "#16171A" : "#fff"}">${p.name[0]}</span>`;
+}
 function renderWho(){
   const el = document.getElementById("who");
   el.innerHTML = "";
   PLAYERS.forEach(p=>{
     const btn = document.createElement("button");
-    btn.textContent = p.name;
-    if(p.id === currentPlayer){
-      btn.classList.add("active");
-      btn.style.borderColor = PLAYER_COLORS[p.id];
-      btn.style.color = playerTextColor(p.id);
-    }
+    btn.innerHTML = avatarHtml(p) + `<span>${p.name}</span>`;
+    btn.style.setProperty("--ring", PLAYER_COLORS[p.id]);
+    if(p.id === currentPlayer) btn.classList.add("active");
     btn.onclick = ()=>{
       currentPlayer = p.id;
       localStorage.setItem("sb_current_player", p.id);
@@ -3062,7 +3098,21 @@ function renderBoard(entries, isLive, viewedDate){
     const top = rr[0].pts;
     const tied = top > 0 && rr.filter(p=> p.pts === top).length > 1;
     const payers = rr.slice(1).map((p, i)=> `${p.name} -${pay[i + 1]}€`).reverse().join(", ");
-    if(isLive){
+    const compact = rr.length >= 4;
+    banner.classList.toggle("tap", compact);
+    banner.onclick = compact ? ()=> openStakesDetails({ rr, pay, prize, tied, top, isLive }) : null;
+    if(compact){
+      const more = `<span class="stakes-more">Details ›</span>`;
+      if(isLive){
+        banner.innerHTML = tied ? `Gleichstand an der Spitze · Pot ${prize} € offen ${more}`
+          : top > 0 ? `<strong>${rr[0].name}</strong> führt · Pot ${prize} € ${more}`
+          : `Noch keine Einträge · Pot ${prize} € ${more}`;
+      } else {
+        banner.innerHTML = tied ? `Gleichstand · Pot ${prize} € nicht vergeben ${more}`
+          : top > 0 ? `<strong>${rr[0].name}</strong> war Sieger · Pot ${prize} € ${more}`
+          : `Keine Einträge in diesem Monat.`;
+      }
+    } else if(isLive){
       if(tied){
         banner.innerHTML = `Gleichstand: <strong>${rr.filter(p=> p.pts === top).map(p=> p.name).join(" & ")}</strong> — ${prize}€ noch offen.`;
       } else if(top > 0){
@@ -3598,7 +3648,7 @@ function renderHeatmap(){
 
   document.getElementById("heatTabs").innerHTML = PLAYERS.map(p=>{
     const on = p.id === heatPlayer;
-    return `<button onclick="selectHeatPlayer('${p.id}')" style="${on ? `border-color:${PLAYER_COLORS[p.id]};color:${playerTextColor(p.id)};` : ""}">${p.name}</button>`;
+    return `<button class="avb${on ? " on" : ""}" aria-label="${p.name}" onclick="selectHeatPlayer('${p.id}')" style="--ring:${PLAYER_COLORS[p.id]}">${avatarHtml(p)}</button>`;
   }).join("");
 
   const perDay = {};
