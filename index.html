@@ -607,7 +607,12 @@
     gap:8px;
     margin-bottom:24px;
   }
-  .board.four{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .board.four{ grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
+  .board.four .card{ padding:12px 7px; }
+  .board.four .p-score{ font-size:22px; }
+  .board.four .p-score small, .board.four .p-score .unit{ font-size:10px; }
+  .board.four .p-name{ font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .board.four .p-meta, .board.four .p-gap, .board.four .p-compare{ font-size:10.5px; white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
   @media (max-width: 420px){
     .board{ gap:6px; }
     .card{ padding:12px 8px; }
@@ -2928,9 +2933,9 @@ function renderBoard(entries, isLive, viewedDate){
       const streakHtml = p.streak && p.streak.count > 0
         ? `<div class="p-meta${p.streak.atRisk ? " streak-risk" : ""}">${ICONS.flame} ${p.streak.count} Tage${p.streak.atRisk ? " " + ICONS.warn : ""}</div>`
         : "";
-      const gapTop1 = i === 1 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz 1</div>` : "";
-      const gapTop2 = i === 2 && ranked[1].pts > p.pts ? `<div class="p-gap">${ranked[1].pts - p.pts} bis Platz 2</div>` : "";
-      const gapTop3 = i === 3 && ranked[2].pts > p.pts ? `<div class="p-gap">${ranked[2].pts - p.pts} bis Platz 3</div>` : "";
+      const gapTop1 = i === 1 && topScore > 0 ? `<div class="p-gap">${topScore - p.pts} bis Platz&nbsp;1</div>` : "";
+      const gapTop2 = i === 2 && ranked[1].pts > p.pts ? `<div class="p-gap">${ranked[1].pts - p.pts} bis Platz&nbsp;2</div>` : "";
+      const gapTop3 = i === 3 && ranked[2].pts > p.pts ? `<div class="p-gap">${ranked[2].pts - p.pts} bis Platz&nbsp;3</div>` : "";
       const gapHtml = gapTop1 + gapTop2 + gapTop3;
       let compareHtml = "";
       if(prevMonth && prevMonth.hasData){
