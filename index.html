@@ -607,12 +607,37 @@
     gap:8px;
     margin-bottom:24px;
   }
-  .board.four{ grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
-  .board.four .card{ padding:12px 7px; }
-  .board.four .p-score{ font-size:22px; }
-  .board.four .p-score small, .board.four .p-score .unit{ font-size:10px; }
-  .board.four .p-name{ font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .board.four .p-meta, .board.four .p-gap, .board.four .p-compare{ font-size:10.5px; white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
+  .board.four{ grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; }
+  .board.four .card{ padding:12px 6px; text-align:center; }
+  .board.four .card.hero{ grid-column:1 / -1; padding:18px; }
+  .board.four .rank-tag{ justify-content:center; }
+  .board.four .card.rank-1 .rank-tag{ justify-content:center; }
+  .board.four .p-name{ font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; }
+  .board.four .card.hero .p-name{ font-size:18px; margin:4px 0 2px; }
+  .board.four .p-score{ font-size:28px; }
+  .board.four .card.hero .p-score{ font-size:60px; line-height:1.05; letter-spacing:-0.03em; }
+  .board.four .p-score .unit{ font-size:11px; }
+  .board.four .card.hero .p-score .unit{ font-size:14px; }
+  .board.four .p-gap{ margin-top:2px; color:var(--red); }
+  .board.four .card.hero .p-gap{ color:var(--green); font-weight:600; font-size:13px; }
+  .board.four .p-meta{ margin-top:6px; }
+  .board.four .card.hero .p-meta{ margin-top:10px; font-size:12px; }
+  .board-hint{ text-align:center; font-size:12px; color:var(--text-dim); margin:-14px 0 20px; }
+  /* Detail-Sheet (Spielerkarte antippen) */
+  .modal-overlay.sheet{ align-items:flex-end; padding:0; }
+  .modal-box.sheet{ max-width:520px; border-radius:22px 22px 0 0; max-height:88vh; padding:14px 20px 24px; animation:sheetUp .22s ease-out; }
+  @keyframes sheetUp{ from{ transform:translateY(40px); opacity:0; } to{ transform:none; opacity:1; } }
+  .sheet-handle{ width:40px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 14px; }
+  .sheet-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .sheet-head .sn{ font-family:var(--font-display); font-size:22px; font-weight:700; }
+  .sheet-head .sr{ font-size:13px; color:var(--text-dim); margin-left:8px; font-weight:400; }
+  .sheet-head .sp{ font-family:var(--font-display); font-size:30px; font-weight:800; letter-spacing:-0.02em; }
+  .sheet-head .sp small{ font-size:13px; color:var(--text-dim); font-weight:500; margin-left:4px; font-family:'Inter'; }
+  .stat-tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin:16px 0 14px; }
+  .stat-tile{ background:var(--panel-2); border-radius:12px; padding:12px 10px; }
+  .stat-tile b{ display:block; font-family:var(--font-display); font-size:20px; font-weight:800; }
+  .stat-tile span{ display:block; font-size:11px; color:var(--text-dim); margin-top:3px; }
+  .stat-tile.up b{ color:var(--green); } .stat-tile.down b{ color:var(--red); } .stat-tile.risk b{ color:var(--gold); }
   @media (max-width: 420px){
     .board{ gap:6px; }
     .card{ padding:12px 8px; }
@@ -2375,16 +2400,19 @@ function openWrappedManually(){
   renderWrapped(w);
 }
 
-function openModal(html, wide){
+function openModal(html, wide, sheet){
   document.getElementById("modalContent").innerHTML = html;
   document.getElementById("modalBox").classList.toggle("wide", !!wide);
+  document.getElementById("modalBox").classList.toggle("sheet", !!sheet);
+  document.getElementById("modalOverlay").classList.toggle("sheet", !!sheet);
   document.getElementById("modalOverlay").classList.add("show");
 }
 
 function closeModal(){
   document.getElementById("modalOverlay").classList.remove("show");
   document.getElementById("modalContent").innerHTML = "";
-  document.getElementById("modalBox").classList.remove("wide");
+  document.getElementById("modalBox").classList.remove("wide", "sheet");
+  document.getElementById("modalOverlay").classList.remove("sheet");
   if(pieChartInstance){ pieChartInstance.destroy(); pieChartInstance = null; }
   if(pieChartDayInstance){ pieChartDayInstance.destroy(); pieChartDayInstance = null; }
   if(bigChartInstance){ bigChartInstance.destroy(); bigChartInstance = null; }
@@ -2412,6 +2440,7 @@ function categoryColor(id){ return CATEGORY_COLORS[id] || "#8E9AAF"; }
 
 // Klick auf eine Spieler-Karte: Kuchendiagramm, wie sich die Punkte im
 // gerade angezeigten Zeitraum (aktueller Monat oder Archiv-Monat) zusammensetzen.
+let boardStats = {};
 function openPlayerBreakdown(playerId){
   const player = PLAYERS.find(p=> p.id === playerId);
   const entries = lastViewedEntries.filter(e=> e.player_id === playerId);
@@ -2442,19 +2471,31 @@ function openPlayerBreakdown(playerId){
   const pageDay = showDay ? `<div class="story-kicker">Heute · ${sum(dayTotals)} Pkt</div>${
     dayCats.length ? pieBox("pieChartDay") : `<div class="story-sub" style="text-align:center">Heute noch keine Punkte.</div>`}` : "";
 
+  const st = boardStats[playerId];
+  const sheetHead = `
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <div class="sn" style="color:${playerTextColor(playerId)}">${player.name}${st ? `<span class="sr">${st.rank}. Platz</span>` : ""}</div>
+        <div class="sp">${st ? st.pts : sum(totals)}<small>Pkt</small></div>
+      </div>
+      ${st ? `<div class="stat-tiles">
+        <div class="stat-tile"><b>${st.avg}</b><span>Ø Punkte / Tag</span></div>
+        ${st.streak ? `<div class="stat-tile${st.streak.atRisk ? " risk" : ""}"><b>${st.streak.count} ${st.streak.count === 1 ? "Tag" : "Tage"}</b><span>Streak${st.streak.atRisk ? " (heute offen)" : ""}</span></div>` : ""}
+        ${st.delta !== null ? `<div class="stat-tile ${st.delta > 0 ? "up" : st.delta < 0 ? "down" : ""}"><b>${st.delta > 0 ? "+" : ""}${st.delta}</b><span>vs. Vormonat</span></div>` : ""}
+      </div>` : ""}`;
   if(!showDay){
-    openModal(`<h3>${player.name}</h3><p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`);
+    openModal(`${sheetHead}<p class="modal-sub">Punkteverteilung nach Kategorie</p><canvas id="pieChart"></canvas>`, false, true);
   } else {
     const pages = [pageAll, pageDay];
     openModal(`
-      <h3>${player.name}</h3>
+      ${sheetHead}
       <p class="modal-sub">Punkteverteilung nach Kategorie · wisch für heute</p>
       <div class="story">
         <div class="story-track" id="storyTrack" onscroll="onStoryScroll()">
           ${pages.map(h=> `<div class="story-page">${h}</div>`).join("")}
         </div>
         <div class="story-dots" id="storyDots">${pages.map((_, i)=> `<button class="${i===0?"on":""}" onclick="goStory(${i})" aria-label="${i ? "Heute" : "Gesamt"}"></button>`).join("")}</div>
-      </div>`);
+      </div>`, false, true);
   }
 
   applyChartDefaults();
@@ -2914,6 +2955,7 @@ function renderBoard(entries, isLive, viewedDate){
 
   const board = document.getElementById("board");
   board.innerHTML = "";
+  boardStats = {};
   board.classList.toggle("four", ranked.length >= 4);
   ranked.forEach((p, i)=>{
     const card = document.createElement("div");
@@ -2965,6 +3007,30 @@ function renderBoard(entries, isLive, viewedDate){
         ${avgHtml}
       `;
     }
+    boardStats[p.id] = {
+      rank: i + 1, pts: p.pts, avg: p.avg,
+      streak: isLive ? p.streak : null,
+      delta: (isLive && prevMonth && prevMonth.hasData) ? p.pts - prevMonth.totals[p.id] : null
+    };
+    if(ranked.length >= 4){
+      const isHero = i === 0;
+      card.classList.toggle("hero", isHero);
+      const rankTxt = (i+1) + ". Platz";
+      const arrow = card.dataset.arrow || "";
+      let gap = "";
+      if(isLive && topScore > 0){
+        if(isHero && ranked[1]) gap = `<div class="p-gap">+${p.pts - ranked[1].pts} vor ${ranked[1].name}</div>`;
+        else if(!isHero && topScore - p.pts > 0) gap = `<div class="p-gap">-${topScore - p.pts}</div>`;
+      }
+      const meta = isLive
+        ? `<div class="p-meta">Heute ${todayPts[p.id]}</div>`
+        : (isSoleLeader ? `<div class="p-meta">${ICONS.trophy} Gewinner</div>` : "");
+      card.innerHTML = `
+        <div class="rank-tag">${rankTxt}${arrow}</div>
+        <div class="p-name" style="color:${playerTextColor(p.id)}">${p.name}</div>
+        <div class="p-score"><span class="num" id="score-${p.id}">0</span><span class="unit">Pkt</span></div>
+        ${gap}${meta}`;
+    }
     board.appendChild(card);
 
     const scoreEl = document.getElementById(`score-${p.id}`);
@@ -2972,6 +3038,14 @@ function renderBoard(entries, isLive, viewedDate){
     animateNumber(scoreEl, from, p.pts, 600);
     displayedScores[p.id] = p.pts;
   });
+
+  {
+    let h = document.getElementById("boardHint");
+    if(ranked.length >= 4){
+      if(!h){ h = document.createElement("div"); h.id = "boardHint"; h.className = "board-hint"; board.after(h); }
+      h.textContent = "Tippen für Details";
+    } else if(h) h.remove();
+  }
 
   if(isLive){
     previousRanks = {};
