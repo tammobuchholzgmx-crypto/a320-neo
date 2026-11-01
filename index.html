@@ -2708,9 +2708,9 @@ function renderDiversityHint(){
   const factor = (count * BONUS_PER_CATEGORY).toFixed(1).replace(".", ",");
 
   if(!currentPlayer || count === 0){
-    el.innerHTML = `Vielfalt-Bonus: jede verschiedene Kategorie heute erhöht deinen Faktor um <strong>0,1</strong> auf die Tagespunkte.`;
+    el.innerHTML = `Vielfalt-Bonus: jede neue Kategorie heute gibt <strong>+0,1</strong> Faktor auf die Tagespunkte.`;
   } else {
-    el.innerHTML = `Vielfalt heute: <strong>${count} Kategorie${count === 1 ? "" : "n"} · Faktor ${factor}</strong> → +${bonus} Pkt Bonus`;
+    el.innerHTML = `Vielfalt: <strong>${count} Kat. · ×${factor}</strong> → +${bonus} Pkt`;
   }
 }
 
