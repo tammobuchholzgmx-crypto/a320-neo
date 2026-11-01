@@ -139,14 +139,14 @@
         rgba(255,226,130,.30) 61%,
         rgba(255,214,120,.00) 70%,
         transparent 82%);
-    background-size:320% 320%;
-    background-position:100% 0;
+    background-size:240% 240%;
+    background-position:62% 38%;
     mix-blend-mode:screen;
     opacity:.85;
-    animation:cardHolo 11s ease-in-out infinite;
+    animation:cardHolo 14s ease-in-out infinite;
   }
   @keyframes cardShine{ 0%,55%{ transform:translateX(-70%); } 100%{ transform:translateX(70%); } }
-  @keyframes cardHolo{ 0%{ background-position:100% 0; } 50%{ background-position:0 100%; } 100%{ background-position:100% 0; } }
+  @keyframes cardHolo{ 0%,100%{ background-position:62% 38%; } 50%{ background-position:38% 62%; } }
   .card.rank-1 .rank-tag{ display:flex; align-items:center; gap:4px; font-weight:600; }
   .card.rank-1 .rank-tag::before{
     content:""; width:13px; height:13px; flex:none; background:var(--gold);
@@ -158,9 +158,9 @@
     background:linear-gradient(100deg, var(--text) 30%, var(--gold) 45%, #fff6d8 50%, var(--gold) 55%, var(--text) 70%);
     background-size:300% 100%;
     -webkit-background-clip:text; background-clip:text; color:transparent;
-    animation:numShine 11s ease-in-out infinite;
+    animation:numShine 14s ease-in-out infinite;
   }
-  @keyframes numShine{ 0%{ background-position:100% 0; } 50%{ background-position:0 0; } 100%{ background-position:100% 0; } }
+  @keyframes numShine{ 0%,100%{ background-position:70% 0; } 50%{ background-position:30% 0; } }
 
   /* Titel-Icon je Design */
   html[data-theme] header h1{ display:flex; align-items:center; gap:9px; }
