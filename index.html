@@ -659,6 +659,8 @@
   .sheet-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
   .sheet-head .sn{ font-family:var(--font-display); font-size:22px; font-weight:700; }
   .sheet-head .sr{ font-size:13px; color:var(--text-dim); margin-left:8px; font-weight:400; }
+  .sheet-head .sg{ font-size:12px; margin-left:10px; font-weight:600; white-space:nowrap; }
+  .sheet-head .sg.down{ color:var(--red); } .sheet-head .sg.up{ color:var(--green); }
   .sheet-head .sp{ font-family:var(--font-display); font-size:30px; font-weight:800; letter-spacing:-0.02em; }
   .sheet-head .sp small{ font-size:13px; color:var(--text-dim); font-weight:500; margin-left:4px; font-family:'Inter'; }
   .stat-tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin:16px 0 14px; }
@@ -2536,7 +2538,9 @@ function openPlayerBreakdown(playerId){
   const sheetHead = `
       <div class="sheet-handle"></div>
       <div class="sheet-head">
-        <div class="sn" style="color:${playerTextColor(playerId)}">${player.name}${st ? `<span class="sr">${st.rank}. Platz</span>` : ""}</div>
+        <div class="sn" style="color:${playerTextColor(playerId)}">${player.name}${st ? `<span class="sr">${st.rank}. Platz</span>` : ""}${st && st.ahead ? (st.ahead.gap !== undefined
+          ? `<span class="sg down">${st.ahead.gap} bis Platz ${st.ahead.place}</span>`
+          : `<span class="sg up">+${st.ahead.lead} vor ${st.ahead.name}</span>`) : ""}</div>
         <div class="sp">${st ? st.pts : sum(totals)}<small>Pkt</small></div>
       </div>
       ${st ? `<div class="stat-tiles">
@@ -3090,6 +3094,7 @@ function renderBoard(entries, isLive, viewedDate){
     }
     boardStats[p.id] = {
       rank: i + 1, pts: p.pts, avg: p.avg,
+      ahead: i > 0 ? { gap: ranked[i-1].pts - p.pts, place: i } : (ranked[1] ? { lead: p.pts - ranked[1].pts, name: ranked[1].name } : null),
       streak: isLive ? p.streak : null,
       delta: (isLive && prevMonth && prevMonth.hasData) ? p.pts - prevMonth.totals[p.id] : null
     };
