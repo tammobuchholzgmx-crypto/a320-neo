@@ -1023,6 +1023,16 @@
     margin:0 0 10px;
     color:var(--text-dim);
   }
+  .diversity-hint.tap{ cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .dv-more{ color:var(--text-dim); font-size:12px; white-space:nowrap; }
+  .dv-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .dv-row{ background:var(--panel-2); border-radius:12px; padding:12px 14px; }
+  .dv-top{ display:flex; align-items:baseline; gap:10px; }
+  .dv-name{ font-weight:600; font-size:15px; flex:1; }
+  .dv-info{ font-size:12px; color:var(--text-dim); }
+  .dv-bonus{ font-family:var(--font-display); font-weight:800; font-size:16px; min-width:64px; text-align:right; color:var(--text-dim); }
+  .dv-bonus.on{ color:var(--green); }
+  .dv-cats{ font-size:11.5px; color:var(--text-dim); margin-top:6px; line-height:1.4; }
   .wallet-log-toggle{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; padding:10px 2px 4px; margin-top:6px; font-size:13px; font-weight:600; color:var(--text-dim); border-top:1px solid var(--line); }
   .wallet-log-toggle .cnt{ font-weight:500; opacity:.7; margin-left:4px; }
   section.feed h2.feed-toggle{
@@ -2748,10 +2758,33 @@ function renderDiversityHint(){
   const factor = (count * BONUS_PER_CATEGORY).toFixed(1).replace(".", ",");
 
   if(!currentPlayer || count === 0){
-    el.innerHTML = `Vielfalt-Bonus: jede neue Kategorie heute gibt <strong>+0,1</strong> Faktor auf die Tagespunkte.`;
+    el.innerHTML = `<span>Vielfalt-Bonus: jede neue Kategorie heute gibt <strong>+0,1</strong> Faktor auf die Tagespunkte.</span><span class="dv-more">Alle ›</span>`;
   } else {
-    el.innerHTML = `Vielfalt: <strong>${count} Kat. · ×${factor}</strong> → +${bonus} Pkt`;
+    el.innerHTML = `<span>Vielfalt: <strong>${count} Kat. · ×${factor}</strong> → +${bonus} Pkt</span><span class="dv-more">Alle ›</span>`;
   }
+  el.classList.add("tap");
+  el.onclick = openDiversityModal;
+}
+
+// Wer hat heute wie viele verschiedene Kategorien und welchen Vielfalt-Bonus?
+function openDiversityModal(){
+  const {start, end} = dayBounds();
+  const catLabel = {}; CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
+  const rows = PLAYERS.map(p=>{
+    const todays = allEntries.filter(e=> e.player_id === p.id && new Date(e.created_at) >= start && new Date(e.created_at) < end);
+    const { count, dayPoints, bonus } = computeDiversity(todays);
+    const cats = [...new Set(todays.filter(e=> e.category !== BONUS_CATEGORY_ID).map(e=> e.category))].map(id=> catLabel[id] || id);
+    return { p, count, bonus, dayPoints, cats, factor: (count * BONUS_PER_CATEGORY).toFixed(1).replace(".", ",") };
+  }).sort((a,b)=> b.bonus - a.bonus || b.count - a.count);
+  const html = rows.map(r=> `<div class="dv-row">
+      <div class="dv-top"><span class="dv-name" style="color:${playerTextColor(r.p.id)}">${r.p.name}</span>
+        <span class="dv-info">${r.count} Kat. · ×${r.factor}</span><span class="dv-bonus${r.bonus > 0 ? " on" : ""}">+${r.bonus} Pkt</span></div>
+      <div class="dv-cats">${r.cats.length ? r.cats.join(" · ") : "Heute noch nichts eingetragen"}</div>
+    </div>`).join("");
+  openModal(`<div class="sheet-handle"></div>
+    <div class="sheet-head"><div class="sn">Vielfalt heute</div></div>
+    <p class="modal-sub" style="margin-top:6px">Jede verschiedene Kategorie gibt +0,1 Faktor auf die Tagespunkte.</p>
+    <div class="dv-list">${html}</div>`, false, true);
 }
 
 function renderCats(){
