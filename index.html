@@ -2769,21 +2769,17 @@ function renderDiversityHint(){
 // Wer hat heute wie viele verschiedene Kategorien und welchen Vielfalt-Bonus?
 function openDiversityModal(){
   const {start, end} = dayBounds();
-  const catLabel = {}; CATEGORIES.forEach(c=> catLabel[c.id] = c.label);
   const rows = PLAYERS.map(p=>{
     const todays = allEntries.filter(e=> e.player_id === p.id && new Date(e.created_at) >= start && new Date(e.created_at) < end);
-    const { count, dayPoints, bonus } = computeDiversity(todays);
-    const cats = [...new Set(todays.filter(e=> e.category !== BONUS_CATEGORY_ID).map(e=> e.category))].map(id=> catLabel[id] || id);
-    return { p, count, bonus, dayPoints, cats, factor: (count * BONUS_PER_CATEGORY).toFixed(1).replace(".", ",") };
+    const { count, bonus } = computeDiversity(todays);
+    return { p, count, bonus };
   }).sort((a,b)=> b.bonus - a.bonus || b.count - a.count);
   const html = rows.map(r=> `<div class="dv-row">
       <div class="dv-top"><span class="dv-name" style="color:${playerTextColor(r.p.id)}">${r.p.name}</span>
-        <span class="dv-info">${r.count} Kat. · ×${r.factor}</span><span class="dv-bonus${r.bonus > 0 ? " on" : ""}">+${r.bonus} Pkt</span></div>
-      <div class="dv-cats">${r.cats.length ? r.cats.join(" · ") : "Heute noch nichts eingetragen"}</div>
+        <span class="dv-info">${r.count} Kat.</span><span class="dv-bonus${r.bonus > 0 ? " on" : ""}">+${r.bonus} Pkt</span></div>
     </div>`).join("");
   openModal(`<div class="sheet-handle"></div>
     <div class="sheet-head"><div class="sn">Vielfalt heute</div></div>
-    <p class="modal-sub" style="margin-top:6px">Jede verschiedene Kategorie gibt +0,1 Faktor auf die Tagespunkte.</p>
     <div class="dv-list">${html}</div>`, false, true);
 }
 
