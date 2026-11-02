@@ -1023,6 +1023,8 @@
     margin:0 0 10px;
     color:var(--text-dim);
   }
+  .wallet-log-toggle{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; padding:10px 2px 4px; margin-top:6px; font-size:13px; font-weight:600; color:var(--text-dim); border-top:1px solid var(--line); }
+  .wallet-log-toggle .cnt{ font-weight:500; opacity:.7; margin-left:4px; }
   section.feed h2.feed-toggle{
     cursor:pointer;
     display:flex;
@@ -3000,12 +3002,15 @@ function renderWallet(){
   }).join("");
 
   const logEl = document.getElementById("walletLog");
+  const head = `<div class="wallet-log-toggle" onclick="toggleWalletLog()" role="button" aria-expanded="${walletLogOpen}">
+      <span>Transaktionen${allSpends.length ? ` <span class="cnt">${allSpends.length}</span>` : ""}</span><span id="walletLogIcon">${walletLogOpen ? "▾" : "▸"}</span></div>`;
+  const wrapList = html=> `${head}<div id="walletLogList"${walletLogOpen ? "" : ' style="display:none"'}>${html}</div>`;
   if(allSpends.length === 0){
-    logEl.innerHTML = `<div class="empty">Noch nichts ausgegeben.</div>`;
+    logEl.innerHTML = wrapList(`<div class="empty">Noch nichts ausgegeben.</div>`);
     return;
   }
   const sorted = [...allSpends].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
-  logEl.innerHTML = sorted.slice(0, 15).map(s=>{
+  logEl.innerHTML = wrapList(sorted.slice(0, 15).map(s=>{
     const d = new Date(s.created_at);
     const time = d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
     const amount = Number(s.amount);
@@ -3016,7 +3021,16 @@ function renderWallet(){
       <div><span class="feed-name">${byId[s.player_id]||'?'}</span> <span class="feed-cat">${label}</span></div>
       <div><span class="feed-pts${isPayment ? "" : " neg"}">${sign}${formatEuro(Math.abs(amount)).replace('-','')}</span><span class="feed-time">${time}</span><button class="del-btn" onclick="deleteSpend('${s.id}')" title="Löschen">×</button></div>
     </div>`;
-  }).join("");
+  }).join(""));
+}
+
+let walletLogOpen = false;
+function toggleWalletLog(){
+  walletLogOpen = !walletLogOpen;
+  const list = document.getElementById("walletLogList");
+  const icon = document.getElementById("walletLogIcon");
+  if(list) list.style.display = walletLogOpen ? "" : "none";
+  if(icon) icon.textContent = walletLogOpen ? "▾" : "▸";
 }
 
 function showToast(msg){
