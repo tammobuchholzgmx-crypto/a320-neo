@@ -2578,7 +2578,7 @@ function openPlayerBreakdown(playerId){
         <div class="sp">${st ? st.pts : sum(totals)}<small>Pkt</small></div>
       </div>
       ${st ? `<div class="stat-tiles">
-        <div class="stat-tile"><b>${st.avg}</b><span>Ø Punkte / Tag</span></div>
+        <div class="stat-tile"><b>${st.avg}</b><span>Ø / Tag gesamt</span></div>
         ${st.streak ? `<div class="stat-tile${st.streak.atRisk ? " risk" : ""}"><b>${st.streak.count} ${st.streak.count === 1 ? "Tag" : "Tage"}</b><span>Streak${st.streak.atRisk ? " (heute offen)" : ""}</span></div>` : ""}
         ${st.delta !== null ? `<div class="stat-tile ${st.delta > 0 ? "up" : st.delta < 0 ? "down" : ""}"><b>${st.delta > 0 ? "+" : ""}${st.delta}</b><span>vs. Vormonat</span></div>` : ""}
       </div>` : ""}`;
@@ -3043,6 +3043,27 @@ function dayStartRanking(entries){
   return { ranks, allZero };
 }
 
+// Ø Punkte pro Tag über ALLE Monate: alle Punkte bis zum angezeigten Zeitpunkt,
+// geteilt durch die Tage ab dem ersten Eintrag der Person (mind. ab START_DATE).
+function overallAverage(playerId, viewedDate, isLive){
+  const endDay = isLive ? new Date() : new Date(viewedDate.getFullYear(), viewedDate.getMonth()+1, 0);
+  const end = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate() + 1); // exklusiv
+  const startDay = new Date(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate());
+  let first = null, sum = 0;
+  for(const e of allEntries){
+    if(e.player_id !== playerId || e.category === STREAK_PENALTY_ID) continue;
+    const d = new Date(e.created_at);
+    if(d >= end) continue;
+    sum += e.points;
+    if(!first || d < first) first = d;
+  }
+  if(!first) return 0;
+  const from = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+  const begin = from < startDay ? startDay : from;
+  const days = Math.max(1, Math.round((end - begin) / 86400000));
+  return Math.round(sum / days);
+}
+
 function renderBoard(entries, isLive, viewedDate){
   const totals = {};
   PLAYERS.forEach(p=> totals[p.id] = 0);
@@ -3054,7 +3075,7 @@ function renderBoard(entries, isLive, viewedDate){
   const ranked = PLAYERS.map(p=>({
     ...p,
     pts: totals[p.id] || 0,
-    avg: daysForAvg > 0 ? Math.round((totals[p.id] || 0) / daysForAvg) : 0,
+    avg: overallAverage(p.id, viewedDate, isLive),
     streak: isLive ? computeStreak(p.id, allEntries) : null,
   })).sort((a,b)=> b.pts - a.pts);
 
