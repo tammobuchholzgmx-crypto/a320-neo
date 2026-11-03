@@ -2917,17 +2917,22 @@ async function insertEntry(categoryId, points, toastMsg, rawValue){
   if(submitting) return;
   submitting = true;
   try {
-    const { error } = await sb.from("entries").insert({
+    const { data: saved, error } = await sb.from("entries").insert({
       player_id: currentPlayer,
       category: categoryId,
       points: points,
       raw_value: rawValue ?? null
-    });
-    if(error){ alert("Fehler beim Speichern: " + error.message); return; }
+    }).select().single();
+    if(error){
+      if(/bereits|already|duplicate/i.test(error.message||"")){ showToast("Heute schon eingetragen ✓"); loadAndRender(); return; }
+      alert("Fehler beim Speichern: " + error.message); return;
+    }
+    // Sofort lokal anzeigen, damit Sperre/Punkte ohne Warten stimmen
+    if(saved && !allEntries.some(e=> e.id === saved.id)){ allEntries.push(saved); applyView(); }
     hapticFeedback();
     showToast(toastMsg);
     await recomputeDiversityBonus(currentPlayer, new Date());
-    await loadAndRender(); // erst neu laden, damit Sperren/Zähler sofort stimmen
+    await loadAndRender();
   } finally {
     submitting = false;
   }
@@ -3780,11 +3785,16 @@ async function fetchAllRows(table){
   }
 }
 
+let loadSeq = 0, loadTimer = null;
+function scheduleLoad(){ clearTimeout(loadTimer); loadTimer = setTimeout(loadAndRender, 400); }
+
 async function loadAndRender(){
+  const mySeq = ++loadSeq;
   const [entriesRes, spendsRes] = await Promise.all([
     fetchAllRows("entries"),
     fetchAllRows("wallet_spends"),
   ]);
+  if(mySeq !== loadSeq) return; // eine neuere Anfrage läuft schon, alte Daten verwerfen
   if(entriesRes.error){ console.error(entriesRes.error); return; }
   if(spendsRes.error){ console.error(spendsRes.error); }
   allEntries = entriesRes.data || [];
@@ -3891,8 +3901,8 @@ function openDayBreakdown(dayKey){
 
 function subscribeRealtime(){
   sb.channel("live-updates")
-    .on("postgres_changes", {event:"*", schema:"public", table:"entries"}, ()=> loadAndRender())
-    .on("postgres_changes", {event:"*", schema:"public", table:"wallet_spends"}, ()=> loadAndRender())
+    .on("postgres_changes", {event:"*", schema:"public", table:"entries"}, ()=> scheduleLoad())
+    .on("postgres_changes", {event:"*", schema:"public", table:"wallet_spends"}, ()=> scheduleLoad())
     .subscribe();
 }
 
@@ -3961,6 +3971,17 @@ async function toggleNotifications(){
   updateNotifButton();
 }
 
+// Neue Version auf GitHub? Dann App einmal neu laden (sonst laufen Handys tagelang mit altem Code)
+const APP_VERSION = "202611030929";
+async function checkForUpdate(){
+  try{
+    const r = await fetch("version.txt?t=" + Date.now(), { cache: "no-store" });
+    if(!r.ok) return;
+    const v = (await r.text()).trim();
+    if(v && v !== APP_VERSION && !submitting) location.reload();
+  }catch(e){ /* offline, egal */ }
+}
+
 async function init(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   viewedMonthKey = monthKey(new Date());
@@ -3976,7 +3997,7 @@ async function init(){
   // Beim Zurückkommen wird zwar neu verbunden, aber verpasste Änderungen
   // kommen nicht automatisch nach — deshalb hier einmal frisch nachladen.
   document.addEventListener("visibilitychange", ()=>{
-    if(document.visibilityState === "visible") loadAndRender();
+    if(document.visibilityState === "visible"){ checkForUpdate(); loadAndRender(); }
   });
   window.addEventListener("focus", ()=> loadAndRender());
   setInterval(updateTicker, 60000);
