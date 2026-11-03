@@ -3972,13 +3972,18 @@ async function toggleNotifications(){
 }
 
 // Neue Version auf GitHub? Dann App einmal neu laden (sonst laufen Handys tagelang mit altem Code)
-const APP_VERSION = "202611030929";
+const APP_VERSION = "202611030956";
 async function checkForUpdate(){
   try{
     const r = await fetch("version.txt?t=" + Date.now(), { cache: "no-store" });
     if(!r.ok) return;
     const v = (await r.text()).trim();
-    if(v && v !== APP_VERSION && !submitting) location.reload();
+    if(v && v !== APP_VERSION && !submitting){
+      let tried = null; try{ tried = sessionStorage.getItem("reloadedFor"); }catch(e){}
+      if(tried === v) return; // schon versucht, keine Endlos-Schleife
+      try{ sessionStorage.setItem("reloadedFor", v); }catch(e){}
+      location.reload();
+    }
   }catch(e){ /* offline, egal */ }
 }
 
@@ -3989,6 +3994,7 @@ async function init(){
   renderWho();
   renderCats();
   if(!currentPlayer) openWhoPicker(true);
+  checkForUpdate();
   await loadAndRender();
   subscribeRealtime();
   healDiversityBonus().catch(err=> console.error("Bonus-Prüfung:", err));

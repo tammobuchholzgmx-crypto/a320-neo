@@ -13,8 +13,13 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   // Immer zuerst frisch aus dem Netz laden, damit jedes Update sofort
   // ankommt. Nur wenn gar keine Verbindung besteht, aus dem Cache bedienen.
+  // Seite selbst (HTML) + version.txt nie aus dem Browser-Cache, sonst
+  // bleiben iPhones bis zu 10 Min (GitHub-Pages-Cache) auf altem Code.
+  const url = new URL(e.request.url);
+  const fresh = e.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname.endsWith("version.txt");
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    (fresh ? fetch(e.request.url, { cache: "no-store" }) : fetch(e.request))
+      .catch(() => caches.match(e.request))
   );
 });
 
