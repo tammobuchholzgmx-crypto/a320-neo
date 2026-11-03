@@ -3766,10 +3766,24 @@ function applyView(){
   }
 }
 
+// Supabase liefert max. 1000 Zeilen pro Abfrage, daher seitenweise laden
+async function fetchAllRows(table){
+  const PAGE = 1000; let from = 0, rows = [];
+  while(true){
+    const res = await sb.from(table).select("*")
+      .order("created_at", {ascending:true}).order("id", {ascending:true})
+      .range(from, from + PAGE - 1);
+    if(res.error) return { data:null, error:res.error };
+    rows = rows.concat(res.data || []);
+    if(!res.data || res.data.length < PAGE) return { data:rows, error:null };
+    from += PAGE;
+  }
+}
+
 async function loadAndRender(){
   const [entriesRes, spendsRes] = await Promise.all([
-    sb.from("entries").select("*").order("created_at", {ascending:true}),
-    sb.from("wallet_spends").select("*").order("created_at", {ascending:true}),
+    fetchAllRows("entries"),
+    fetchAllRows("wallet_spends"),
   ]);
   if(entriesRes.error){ console.error(entriesRes.error); return; }
   if(spendsRes.error){ console.error(spendsRes.error); }
